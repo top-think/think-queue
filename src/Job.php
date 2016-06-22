@@ -13,6 +13,7 @@ namespace think\queue;
 
 
 use DateTime;
+use think\Config;
 
 abstract class Job
 {
@@ -141,7 +142,7 @@ abstract class Job
     {
         if (strpos($name, '\\') !== false) {
             list($module, $name) = explode('/', $name);
-            $name = APP_NAMESPACE . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
+            $name = Config::get('app_namespace') . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
         }
         return new $name();
     }
