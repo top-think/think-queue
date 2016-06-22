@@ -140,8 +140,14 @@ abstract class Job
      */
     protected function resolve($name)
     {
-        if (strpos($name, '\\') !== false) {
-            list($module, $name) = explode('/', $name);
+        if (strpos($name, '\\') === false) {
+
+            if (strpos($name, '/') === false) {
+                $module = '';
+            } else {
+                list($module, $name) = explode('/', $name, 2);
+            }
+
             $name = Config::get('app_namespace') . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
         }
         return new $name();

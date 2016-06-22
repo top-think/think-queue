@@ -72,7 +72,7 @@ class Redis
 
         $job = $this->redis->lPop($queue);
 
-        if (!is_null($job)) {
+        if ($job !== false) {
             $this->redis->zAdd($queue . ':reserved', time() + $this->options['expire'], $job);
 
             return new RedisJob($this, $job, $original);
