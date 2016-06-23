@@ -16,8 +16,5 @@
         "files": [
             "src/config.php"
         ]
-    },
-    "require": {
-        "iron-io/iron_mq": "4.*"
     }
 }

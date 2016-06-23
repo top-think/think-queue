@@ -50,7 +50,7 @@ class Listener
     {
         $this->commandPath   = $commandPath;
         $this->workerCommand =
-            '"' . PHP_BINARY . '" console queue:work --queue="%s" --delay=%s --memory=%s --sleep=%s --tries=%s';
+            '"' . PHP_BINARY . '" think queue:work --queue="%s" --delay=%s --memory=%s --sleep=%s --tries=%s';
     }
 
     /**
