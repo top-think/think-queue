@@ -33,6 +33,14 @@ class Queue
         return self::handle()->pop($queue);
     }
 
+    public static function marshal()
+    {
+        if (!method_exists(self::handle(), 'marshal'))
+            throw new \RuntimeException('push queues not support for this type');
+
+        self::handle()->marshal();
+    }
+
     private static function handle()
     {
         $options = Config::get('queue');
