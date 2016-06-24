@@ -116,6 +116,7 @@ class Job2{
 单模块的，且命名空间是`app\job`的，比如上面的例子一,写`Job1`类名即可  
 多模块的，且命名空间是`app\module\job`的，写`model/Job1`即可  
 其他的需要些完整的类名，比如上面的例子二，需要写完整的类名`app\lib\job\Job2`
+如果一个任务类里有多个小任务的话，如上面的例子二，需要用@+方法名`app\lib\job\Job2@task1`、`app\lib\job\Job2@task2`
 
 `$data` 是你要传到任务里的参数
 
