@@ -25,6 +25,7 @@ class Subscribe extends Command
     {
         $this->setName('queue:subscribe')
             ->setDescription('Subscribe a URL to an push queue')
+            ->addArgument('name', Argument::REQUIRED, 'name')
             ->addArgument('url', Argument::REQUIRED, 'The URL to be subscribed.')
             ->addArgument('queue', Argument::OPTIONAL, 'The URL to be subscribed.')
             ->addOption('option', null, Option::VALUE_IS_ARRAY | Option::VALUE_OPTIONAL, 'the options');
@@ -38,7 +39,7 @@ class Subscribe extends Command
             $url = Url::build($url);
         }
 
-        Queue::subscribe($url, $input->getArgument('queue'), $input->getOption('option'));
+        Queue::subscribe($input->getArgument('name'), $url, $input->getArgument('queue'), $input->getOption('option'));
 
         $output->write('<info>Queue subscriber added:</info> <comment>' . $input->getArgument('url') . '</comment>');
     }
