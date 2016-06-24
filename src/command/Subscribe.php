@@ -27,8 +27,7 @@ class Subscribe extends Command
             ->setDescription('Subscribe a URL to an push queue')
             ->addArgument('url', Argument::REQUIRED, 'The URL to be subscribed.')
             ->addArgument('queue', Argument::OPTIONAL, 'The URL to be subscribed.')
-            ->addOption('option', null, Option::VALUE_IS_ARRAY, 'the options');
-
+            ->addOption('option', null, Option::VALUE_IS_ARRAY | Option::VALUE_OPTIONAL, 'the options');
     }
 
     public function execute(Input $input, Output $output)
