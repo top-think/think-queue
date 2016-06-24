@@ -166,7 +166,7 @@ abstract class Job
 
         $this->instance = $this->resolve($class);
         if (method_exists($this->instance, 'failed')) {
-            $this->instance->failed($payload['data']);
+            $this->instance->failed($this, $payload['data']);
         }
     }
 

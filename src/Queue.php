@@ -17,22 +17,44 @@ class Queue
 {
     protected static $instance = [];
 
+    /**
+     * 添加任务到队列
+     * @param        $job
+     * @param string $data
+     * @param null   $queue
+     */
     public static function push($job, $data = '', $queue = null)
     {
         self::handle()->push($job, $data, $queue);
 
     }
 
+    /**
+     * 添加延迟任务到队列
+     * @param        $delay
+     * @param        $job
+     * @param string $data
+     * @param null   $queue
+     */
     public static function later($delay, $job, $data = '', $queue = null)
     {
         self::handle()->later($delay, $job, $data, $queue);
     }
 
+    /**
+     * 获取第一个任务
+     * @param null $queue
+     * @return mixed
+     */
     public static function pop($queue = null)
     {
         return self::handle()->pop($queue);
     }
 
+
+    /**
+     * 由订阅的推送执行任务
+     */
     public static function marshal()
     {
         if (!method_exists(self::handle(), 'marshal'))
@@ -41,13 +63,27 @@ class Queue
         self::handle()->marshal();
     }
 
+    /**
+     * 订阅
+     * @param       $url
+     * @param array $options
+     */
+    public static function subscribe($url, array $options = [])
+    {
+        if (!method_exists(self::handle(), 'subscribe'))
+            throw new \RuntimeException('subscribe queues not support for this type');
+
+        self::handle()->subscribe($url, $options);
+    }
+
     private static function handle()
     {
         $options = Config::get('queue');
         $type    = !empty($options['type']) ? $options['type'] : 'Sync';
 
         if (!isset(self::$instance[$type])) {
-            $class = (!empty($options['namespace']) ? $options['namespace'] : '\\think\\queue\\driver\\') . ucwords($type);
+
+            $class = false !== strpos($type, '\\') ? $type : '\\think\\queue\\driver\\' . ucwords($type);
 
             self::$instance[$type] = new $class($options);
         }
