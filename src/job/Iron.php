@@ -72,7 +72,7 @@ class Iron extends Job
             return;
         }
 
-        $this->iron->deleteMessage($this->getQueue(), $this->job->id);
+        $this->iron->deleteMessage($this->getQueue(), $this->job->id, $this->job->reservation_id);
     }
 
     public function release($delay = 0)

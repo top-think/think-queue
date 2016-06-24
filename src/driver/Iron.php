@@ -96,9 +96,9 @@ class Iron
         return $this->setMeta($payload, 'queue', $this->getQueue($queue));
     }
 
-    public function deleteMessage($queue, $id)
+    public function deleteMessage($queue, $id, $reservation_id)
     {
-        $this->iron->deleteMessage($queue, $id);
+        $this->iron->deleteMessage($queue, $id, $reservation_id);
     }
 
     public function marshal()
