@@ -56,7 +56,7 @@ use think\queue\Job;
 
 class Job1{
     
-    pubulic function fire(Job $job, $data){
+    public function fire(Job $job, $data){
     
             //....这里执行具体的任务 
             
@@ -90,17 +90,17 @@ use think\queue\Job;
 
 class Job2{
     
-    pubulic function task1(Job $job, $data){
+    public function task1(Job $job, $data){
     
           
     }
     
-    pubulic function task2(Job $job, $data){
+    public function task2(Job $job, $data){
     
           
     }
     
-    pubulic function failed(Job $job, $data){
+    public function failed(Job $job, $data){
     
           
     }
