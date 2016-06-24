@@ -66,14 +66,15 @@ class Queue
     /**
      * 订阅
      * @param       $url
+     * @param       $queue
      * @param array $options
      */
-    public static function subscribe($url, array $options = [])
+    public static function subscribe($url, $queue, array $options = [])
     {
         if (!method_exists(self::handle(), 'subscribe'))
             throw new \RuntimeException('subscribe queues not support for this type');
 
-        self::handle()->subscribe($url, $options);
+        self::handle()->subscribe($url, $queue, $options);
     }
 
     private static function handle()

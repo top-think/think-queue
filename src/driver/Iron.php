@@ -12,6 +12,7 @@
 namespace think\queue\driver;
 
 
+use Exception;
 use IronMQ\IronMQ;
 use think\queue\job\Iron as IronJob;
 use think\Request;
@@ -105,6 +106,34 @@ class Iron
         $this->createPushedIronJob($this->marshalPushedJob())->fire();
 
         return new Response('OK');
+    }
+
+    public function subscribe($url, $queue, array $options = [])
+    {
+        if (!empty($options['type'])) {
+            $type = $options['type'];
+        } else {
+            try {
+                $type = $this->iron->getQueue($queue)->push_type;
+            } catch (Exception $e) {
+                $type = 'multicast';
+            }
+        }
+
+        try {
+            $subscribers = $this->iron->getQueue($queue)->subscribers;
+        } catch (Exception $e) {
+            $subscribers = [];
+        }
+
+        $subscribers[] = ['url' => $url];
+
+        $data = [
+            'push_type'   => $type,
+            'subscribers' => $subscribers
+        ];
+
+        $this->iron->updateQueue($queue, $data);
     }
 
     /**
