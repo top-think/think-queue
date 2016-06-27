@@ -118,8 +118,8 @@ class Database
             ->where('queue', $this->getQueue($queue))
             ->where('reserved', 0)
             ->where('available_at', '<=', time())
-            ->orderBy('id', 'asc')
-            ->first();
+            ->order('id', 'asc')
+            ->find();
 
         return $job ? (object)$job : null;
     }
