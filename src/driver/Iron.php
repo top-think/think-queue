@@ -121,9 +121,9 @@ class Iron
     protected function marshalPushedJob()
     {
         return (object)[
-            'id'     => $this->request->header('iron-message-id'),
-            'body'   => $this->request->getContent(),
-            'pushed' => true,
+            'id'             => $this->request->header('iron-message-id'),
+            'body'           => $this->request->getContent(),
+            'reservation_id' => $this->request->header('iron-reservation-id')
         ];
     }
 

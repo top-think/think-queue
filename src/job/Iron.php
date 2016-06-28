@@ -68,7 +68,7 @@ class Iron extends Job
     {
         parent::delete();
 
-        if (isset($this->job->pushed)) {
+        if ($this->pushed) {
             return;
         }
 
