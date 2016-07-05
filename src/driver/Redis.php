@@ -146,37 +146,34 @@ class Redis
      */
     public function migrateExpiredJobs($from, $to)
     {
-        $options = ['watch' => $from];
+        $this->redis->watch($from);
 
-        $this->transaction($options, function ($transaction) use ($from, $to) {
-            $jobs = $this->getExpiredJobs(
-                $transaction, $from, $time = time()
-            );
-
-            if (count($jobs) > 0) {
-                $this->removeExpiredJobs($transaction, $from, $time);
-
-                $this->pushExpiredJobsOntoNewQueue($transaction, $to, $jobs);
-            }
-        });
+        $jobs = $this->getExpiredJobs(
+            $from, $time = time()
+        );
+        if (count($jobs) > 0) {
+            $this->transaction(function () use ($from, $to, $time, $jobs) {
+                $this->removeExpiredJobs($from, $time);
+                $this->pushExpiredJobsOntoNewQueue($to, $jobs);
+            });
+        }
+        $this->redis->unwatch();
     }
 
     /**
      * redis事务
-     * @param array    $options
      * @param \Closure $closure
      */
-    protected function transaction($options = [], \Closure $closure)
+    protected function transaction(\Closure $closure)
     {
-        if (!empty($options['watch'])) {
-            $this->redis->watch($options['watch']);
-        }
-        $redis = $this->redis->multi();
+        $this->redis->multi();
         try {
-            call_user_func($closure, $redis);
-            $redis->exec();
+            call_user_func($closure);
+            if (!$this->redis->exec()) {
+                $this->redis->discard();
+            }
         } catch (Exception $e) {
-            $redis->discard();
+            $this->redis->discard();
         }
     }
 
@@ -184,41 +181,38 @@ class Redis
     /**
      * 获取所有到期任务
      *
-     * @param \Redis  $redis
      * @param  string $from
      * @param  int    $time
      * @return array
      */
-    protected function getExpiredJobs(\Redis $redis, $from, $time)
+    protected function getExpiredJobs($from, $time)
     {
-        return $redis->zRangeByScore($from, '-inf', $time);
+        return $this->redis->zRangeByScore($from, '-inf', $time);
     }
 
 
     /**
      * 删除过期任务
      *
-     * @param  \Redis $redis
      * @param  string $from
      * @param  int    $time
      * @return void
      */
-    protected function removeExpiredJobs(\Redis $redis, $from, $time)
+    protected function removeExpiredJobs($from, $time)
     {
-        $redis->zRemRangeByScore($from, '-inf', $time);
+        $this->redis->zRemRangeByScore($from, '-inf', $time);
     }
 
     /**
      * 重新发布到期任务
      *
-     * @param  \Redis $redis
      * @param  string $to
      * @param  array  $jobs
      * @return void
      */
-    protected function pushExpiredJobsOntoNewQueue(\Redis $redis, $to, $jobs)
+    protected function pushExpiredJobsOntoNewQueue($to, $jobs)
     {
-        call_user_func_array([$redis, 'rPush'], array_merge([$to], $jobs));
+        call_user_func_array([$this->redis, 'rPush'], array_merge([$to], $jobs));
     }
 
     /**
