@@ -132,7 +132,7 @@ class Redis
      */
     protected function migrateAllExpiredJobs($queue)
     {
-        $this->migrateExpiredJobs($queue . ':delayed', $queue);
+        $this->migrateExpiredJobs($queue . ':delayed', $queue, false);
 
         $this->migrateExpiredJobs($queue . ':reserved', $queue);
     }
@@ -140,11 +140,11 @@ class Redis
     /**
      * 移动延迟任务
      *
-     * @param  string $from
-     * @param  string $to
-     * @return void
+     * @param string $from
+     * @param string $to
+     * @param bool   $attempt
      */
-    public function migrateExpiredJobs($from, $to)
+    public function migrateExpiredJobs($from, $to, $attempt = true)
     {
         $this->redis->watch($from);
 
@@ -152,9 +152,9 @@ class Redis
             $from, $time = time()
         );
         if (count($jobs) > 0) {
-            $this->transaction(function () use ($from, $to, $time, $jobs) {
+            $this->transaction(function () use ($from, $to, $time, $jobs, $attempt) {
                 $this->removeExpiredJobs($from, $time);
-                $this->pushExpiredJobsOntoNewQueue($to, $jobs);
+                $this->pushExpiredJobsOntoNewQueue($to, $jobs, $attempt);
             });
         }
         $this->redis->unwatch();
@@ -206,12 +206,18 @@ class Redis
     /**
      * 重新发布到期任务
      *
-     * @param  string $to
-     * @param  array  $jobs
-     * @return void
+     * @param  string  $to
+     * @param  array   $jobs
+     * @param  boolean $attempt
      */
-    protected function pushExpiredJobsOntoNewQueue($to, $jobs)
+    protected function pushExpiredJobsOntoNewQueue($to, $jobs, $attempt = true)
     {
+        if ($attempt) {
+            foreach ($jobs as &$job) {
+                $attempts = json_decode($job, true)['attempts'];
+                $job      = $this->setMeta($job, 'attempts', $attempts + 1);
+            }
+        }
         call_user_func_array([$this->redis, 'rPush'], array_merge([$to], $jobs));
     }
 
