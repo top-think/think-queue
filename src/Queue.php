@@ -48,6 +48,9 @@ class Queue
      */
     public static function pop($queue = null)
     {
+        if (!method_exists(self::handle(), 'pop'))
+            throw new \RuntimeException('pop queues not support for this type');
+        
         return self::handle()->pop($queue);
     }
 
