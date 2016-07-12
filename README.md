@@ -8,7 +8,7 @@
 
 ```
 'queue'=>[
-    'type'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动,iron:Iron.io驱动
+    'type'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动,topthink:Topthink驱动
                    //或其他自定义的完整的类名
 ]
 ```
@@ -16,9 +16,6 @@
 ### 驱动配置
 > 各个驱动的具体可用配置项在`think\queue\driver`目录下各个驱动类里的`options`属性中，写在上面的`queue`配置里即可覆盖
 
-
-## 使用 Iron
-> composer require iron-io/iron_mq 4.*
 
 ## 使用 Database
 > 创建如下数据表
