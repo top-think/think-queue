@@ -11,7 +11,7 @@
 
 namespace think\queue\command;
 
-use think\console\command\Command;
+use think\console\Command;
 use think\console\Input;
 use think\console\input\Argument;
 use think\console\input\Option;
