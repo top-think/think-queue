@@ -11,7 +11,6 @@
 
 namespace think\queue\driver;
 
-
 use think\exception\HttpException;
 use think\Request;
 use think\queue\job\Topthink as TopthinkJob;
@@ -20,15 +19,14 @@ use think\Response;
 class Topthink
 {
     protected $options = [
-        'token'          => '',
-        'project_id'     => '',
-        'protocol'       => 'http',
-        'host'           => 'qns.topthink.com',
-        'port'           => '80',
-        'api_version'    => '3',
-        'max_retries'    => 3,
-        'encryption_key' => '',
-        'default'        => 'default'
+        'token'       => '',
+        'project_id'  => '',
+        'protocol'    => 'http',
+        'host'        => 'qns.topthink.com',
+        'port'        => 80,
+        'api_version' => 1,
+        'max_retries' => 3,
+        'default'     => 'default'
     ];
 
     /** @var  Request */
@@ -209,7 +207,7 @@ class Topthink
      */
     protected function marshalPushedJob()
     {
-        return (object)[
+        return (object) [
             'id'       => $this->request->header('topthink-message-id'),
             'payload'  => $this->request->getContent(),
             'attempts' => $this->request->header('topthink-message-attempts')
