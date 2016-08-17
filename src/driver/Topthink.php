@@ -192,7 +192,7 @@ class Topthink
 
     protected function reportHttpError($status, $text)
     {
-        throw new HttpException("http error: {$status} | {$text}", $status);
+        throw new HttpException($status, "http error: {$status} | {$text}");
     }
 
     protected function createPayload($job, $data = '')
