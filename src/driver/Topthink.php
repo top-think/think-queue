@@ -83,7 +83,7 @@ class Topthink
     {
         $queue_name = $this->getQueue($queue);
         $queue      = rawurlencode($queue_name);
-        $url        = "projects/{$this->options['project_id']}/queue/{$queue}/message";
+        $url        = "project/{$this->options['project_id']}/queue/{$queue}/message";
         $message    = [
             'payload'  => $payload,
             'attempts' => $attempts,
@@ -96,7 +96,7 @@ class Topthink
     public function deleteMessage($queue, $id)
     {
         $queue = rawurlencode($queue);
-        $url   = "projects/{$this->options['project_id']}/queue/{$queue}/message/{$id}";
+        $url   = "project/{$this->options['project_id']}/queue/{$queue}/message/{$id}";
         return $this->apiCall('DELETE', $url);
     }
 
