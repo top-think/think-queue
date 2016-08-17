@@ -11,7 +11,6 @@
 
 namespace think\queue;
 
-
 use DateTime;
 use think\Config;
 
@@ -23,7 +22,6 @@ abstract class Job
      * @var mixed
      */
     protected $instance;
-
 
     /**
      * The name of the queue the job belongs to.
@@ -117,8 +115,9 @@ abstract class Job
         list($class, $method) = $this->parseJob($payload['job']);
 
         $this->instance = $this->resolve($class);
-
-        $this->instance->{$method}($this, $payload['data']);
+        if ($this->instance) {
+            $this->instance->{$method}($this, $payload['data']);
+        }
     }
 
     /**
@@ -150,9 +149,10 @@ abstract class Job
 
             $name = Config::get('app_namespace') . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
         }
-        return new $name();
+        if (class_exists($name)) {
+            return new $name();
+        }
     }
-
 
     /**
      * Call the failed method on the job instance.
@@ -165,7 +165,7 @@ abstract class Job
         list($class, $method) = $this->parseJob($payload['job']);
 
         $this->instance = $this->resolve($class);
-        if (method_exists($this->instance, 'failed')) {
+        if ($this->instance && method_exists($this->instance, 'failed')) {
             $this->instance->failed($this, $payload['data']);
         }
     }
@@ -181,7 +181,7 @@ abstract class Job
             return max(0, $delay->getTimestamp() - $this->getTime());
         }
 
-        return (int)$delay;
+        return (int) $delay;
     }
 
     /**
