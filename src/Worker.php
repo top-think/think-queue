@@ -11,63 +11,11 @@
 
 namespace think\queue;
 
-
 use Exception;
-use think\Cache;
-use think\Config;
-use think\exception\Handle;
-use think\exception\ThrowableError;
 use think\Hook;
-use Throwable;
 
 class Worker
 {
-
-
-    /**
-     * 启动一个守护进程执行任务.
-     *
-     * @param  string $queue
-     * @param  int    $delay
-     * @param  int    $memory
-     * @param  int    $sleep
-     * @param  int    $maxTries
-     * @return array
-     */
-    public function daemon($queue = null, $delay = 0, $memory = 128, $sleep = 3, $maxTries = 0)
-    {
-        $lastRestart = $this->getTimestampOfLastQueueRestart();
-
-        while (true) {
-            $this->runNextJobForDaemon(
-                $queue, $delay, $sleep, $maxTries
-            );
-
-            if ($this->memoryExceeded($memory) || $this->queueShouldRestart($lastRestart)) {
-                $this->stop();
-            }
-        }
-    }
-
-    /**
-     * 以守护进程的方式执行下个任务.
-     *
-     * @param  string $queue
-     * @param  int    $delay
-     * @param  int    $sleep
-     * @param  int    $maxTries
-     * @return void
-     */
-    protected function runNextJobForDaemon($queue, $delay, $sleep, $maxTries)
-    {
-        try {
-            $this->pop($queue, $delay, $sleep, $maxTries);
-        } catch (Exception $e) {
-            $this->getExceptionHandler()->report($e);
-        } catch (Throwable $e) {
-            $this->getExceptionHandler()->report(new ThrowableError($e));
-        }
-    }
 
     /**
      * 执行下个任务
@@ -94,6 +42,7 @@ class Worker
     /**
      * 获取下个任务
      * @param  string $queue
+     * @return Job
      */
     protected function getNextJob($queue)
     {
@@ -150,26 +99,6 @@ class Worker
         return ['job' => $job, 'failed' => true];
     }
 
-
-    /**
-     * 检查内存是否超出
-     * @param  int $memoryLimit
-     * @return bool
-     */
-    public function memoryExceeded($memoryLimit)
-    {
-        return (memory_get_usage() / 1024 / 1024) >= $memoryLimit;
-    }
-
-    /**
-     * 停止执行任务的守护进程.
-     * @return void
-     */
-    public function stop()
-    {
-        die;
-    }
-
     /**
      * Sleep the script for a given number of seconds.
      * @param  int $seconds
@@ -178,52 +107,6 @@ class Worker
     public function sleep($seconds)
     {
         sleep($seconds);
-    }
-
-    /**
-     * 获取上次重启守护进程的时间
-     *
-     * @return int|null
-     */
-    protected function getTimestampOfLastQueueRestart()
-    {
-        return Cache::get('think:queue:restart');
-    }
-
-    /**
-     * 检查是否要重启守护进程
-     *
-     * @param  int|null $lastRestart
-     * @return bool
-     */
-    protected function queueShouldRestart($lastRestart)
-    {
-        return $this->getTimestampOfLastQueueRestart() != $lastRestart;
-    }
-
-
-    /**
-     * 获取异常处理实例
-     *
-     * @return \think\exception\Handle
-     */
-    protected static function getExceptionHandler()
-    {
-        static $handle;
-
-        if (!$handle) {
-
-            if ($class = Config::get('exception_handle')) {
-                if (class_exists($class) && is_subclass_of($class, "\\think\\exception\\Handle")) {
-                    $handle = new $class;
-                }
-            }
-            if (!$handle) {
-                $handle = new Handle();
-            }
-        }
-
-        return $handle;
     }
 
 }
