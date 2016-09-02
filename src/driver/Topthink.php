@@ -26,7 +26,8 @@ class Topthink
         'port'        => 80,
         'api_version' => 1,
         'max_retries' => 3,
-        'default'     => 'default'
+        'default'     => 'default',
+        'ssl_version' => CURL_SSLVERSION_TLSv1
     ];
 
     /** @var  Request */
@@ -136,6 +137,7 @@ class Topthink
 
         curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($this->curl, CURLOPT_SSLVERSION, $this->options['ssl_version']);
         curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
 
         $headers = [];
