@@ -21,13 +21,12 @@ class Topthink
     protected $options = [
         'token'       => '',
         'project_id'  => '',
-        'protocol'    => 'http',
+        'protocol'    => 'https',
         'host'        => 'qns.topthink.com',
-        'port'        => 80,
+        'port'        => 443,
         'api_version' => 1,
         'max_retries' => 3,
-        'default'     => 'default',
-        'ssl_version' => CURL_SSLVERSION_TLSv1
+        'default'     => 'default'
     ];
 
     /** @var  Request */
@@ -136,8 +135,6 @@ class Topthink
         }
 
         curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($this->curl, CURLOPT_SSLVERSION, $this->options['ssl_version']);
         curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
 
         $headers = [];
