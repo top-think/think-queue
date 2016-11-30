@@ -9,14 +9,15 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace think\queue\driver;
+namespace think\queue\connector;
 
 use think\exception\HttpException;
+use think\queue\Connector;
 use think\Request;
 use think\queue\job\Topthink as TopthinkJob;
 use think\Response;
 
-class Topthink
+class Topthink extends Connector
 {
     protected $options = [
         'token'       => '',
@@ -195,11 +196,6 @@ class Topthink
         throw new HttpException($status, "http error: {$status} | {$text}");
     }
 
-    protected function createPayload($job, $data = '')
-    {
-        return json_encode(['job' => $job, 'data' => $data]);
-    }
-
     /**
      * Marshal out the pushed job and payload.
      *
@@ -214,10 +210,6 @@ class Topthink
         ];
     }
 
-    public function getQueue($queue)
-    {
-        return $queue ?: $this->options['default'];
-    }
 
     public function __destruct()
     {
@@ -225,5 +217,10 @@ class Topthink
             curl_close($this->curl);
             $this->curl = null;
         }
+    }
+
+    public function pop($queue = null)
+    {
+        throw new \RuntimeException('pop queues not support for this type');
     }
 }

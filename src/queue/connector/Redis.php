@@ -9,13 +9,14 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace think\queue\driver;
-
+namespace think\queue\connector;
 
 use Exception;
+use think\helper\Str;
+use think\queue\Connector;
 use think\queue\job\Redis as RedisJob;
 
-class Redis
+class Redis extends Connector
 {
     /** @var  \Redis */
     protected $redis;
@@ -47,7 +48,7 @@ class Redis
         if ('' != $this->options['password']) {
             $this->redis->auth($this->options['password']);
         }
-        
+
         if (0 != $this->options['select']) {
             $this->redis->select($this->options['select']);
         }
@@ -107,12 +108,11 @@ class Redis
         return json_decode($payload, true)['id'];
     }
 
-
-    protected function createPayload($job, $data)
+    protected function createPayload($job, $data = '', $queue = null)
     {
-        $payload = json_encode(['job' => $job, 'data' => $data]);
-
-        $payload = $this->setMeta($payload, 'id', $this->getRandomId());
+        $payload = $this->setMeta(
+            parent::createPayload($job, $data), 'id', $this->getRandomId()
+        );
 
         return $this->setMeta($payload, 'attempts', 1);
     }
@@ -182,7 +182,6 @@ class Redis
         }
     }
 
-
     /**
      * 获取所有到期任务
      *
@@ -194,7 +193,6 @@ class Redis
     {
         return $this->redis->zRangeByScore($from, '-inf', $time);
     }
-
 
     /**
      * 删除过期任务
@@ -233,14 +231,7 @@ class Redis
      */
     protected function getRandomId()
     {
-        return uniqid();
-    }
-
-    protected function setMeta($payload, $key, $value)
-    {
-        $payload       = json_decode($payload, true);
-        $payload[$key] = $value;
-        return json_encode($payload);
+        return Str::random(32);
     }
 
     /**

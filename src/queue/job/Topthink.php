@@ -13,29 +13,31 @@ namespace think\queue\job;
 
 
 use think\queue\Job;
-use think\queue\driver\Redis as RedisQueue;
+use think\queue\connector\Topthink as TopthinkQueue;
 
-class Redis extends Job
+class Topthink extends Job
 {
 
-
     /**
-     * The redis queue instance.
-     * @var RedisQueue
+     * The Iron queue instance.
+     *
+     * @var TopthinkQueue
      */
-    protected $redis;
+    protected $topthink;
 
     /**
-     * The database job payload.
-     * @var Object
+     * The IronMQ message instance.
+     *
+     * @var object
      */
     protected $job;
 
-    public function __construct(RedisQueue $redis, $job, $queue)
+    public function __construct(TopthinkQueue $topthink, $job, $queue)
     {
-        $this->job   = $job;
-        $this->queue = $queue;
-        $this->redis = $redis;
+        $this->topthink      = $topthink;
+        $this->job           = $job;
+        $this->queue         = $queue;
+        $this->job->attempts = $this->job->attempts + 1;
     }
 
     /**
@@ -44,7 +46,7 @@ class Redis extends Job
      */
     public function fire()
     {
-        $this->resolveAndFire(json_decode($this->getRawBody(), true));
+        $this->resolveAndFire(json_decode($this->job->payload, true));
     }
 
     /**
@@ -53,7 +55,23 @@ class Redis extends Job
      */
     public function attempts()
     {
-        return json_decode($this->job, true)['attempts'];
+        return (int)$this->job->attempts;
+    }
+
+    public function delete()
+    {
+        parent::delete();
+
+        $this->topthink->deleteMessage($this->queue, $this->job->id);
+    }
+
+    public function release($delay = 0)
+    {
+        parent::release($delay);
+
+        $this->delete();
+
+        $this->topthink->release($this->queue, $this->job, $delay);
     }
 
     /**
@@ -62,34 +80,7 @@ class Redis extends Job
      */
     public function getRawBody()
     {
-        return $this->job;
+        return $this->job->payload;
     }
 
-
-    /**
-     * 删除任务
-     *
-     * @return void
-     */
-    public function delete()
-    {
-        parent::delete();
-
-        $this->redis->deleteReserved($this->queue, $this->job);
-    }
-
-    /**
-     * 重新发布任务
-     *
-     * @param  int $delay
-     * @return void
-     */
-    public function release($delay = 0)
-    {
-        parent::release($delay);
-
-        $this->delete();
-
-        $this->redis->release($this->queue, $this->job, $delay, $this->attempts() + 1);
-    }
 }
