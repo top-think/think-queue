@@ -25,7 +25,7 @@ trait Queueable
      * @param $queue
      * @return $this
      */
-    public function onQueue($queue)
+    public function queue($queue)
     {
         $this->queue = $queue;
 

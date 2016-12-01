@@ -13,6 +13,7 @@ namespace think\queue;
 
 use Exception;
 use think\Hook;
+use think\Queue;
 
 class Worker
 {
