@@ -15,7 +15,33 @@
 ```
 
 ### 驱动配置
-> 各个驱动的具体可用配置项在`think\queue\connector`目录下各个驱动类里的`options`属性中，写在上面的`queue`配置里即可覆盖
+> 配置模版文件： `src/config.php` 文件。示例：
+
+```
+return [
+    'connector' => 'database',
+    
+    'Sync' => [],
+    
+    'database' => [
+        'expire'  => 60,
+        'default' => 'default',
+        'table'   => 'jobs',
+        'dsn'     => []
+    ],
+    
+    'redis' => [
+        'expire'     => 60,
+        'default'    => 'default',
+        'host'       => '127.0.0.1',
+        'port'       => 6379,
+        'password'   => '',
+        'select'     => 0,
+        'timeout'    => 0,
+        'persistent' => false
+    ],
+];
+```
 
 
 ## 使用 Database

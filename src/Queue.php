@@ -32,6 +32,7 @@ class Queue
     {
         $options = Config::get('queue');
         $type    = !empty($options['connector']) ? $options['connector'] : 'Sync';
+        $options = $options[$type];
 
         if (!isset(self::$connector)) {
 

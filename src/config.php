@@ -10,5 +10,36 @@
 // +----------------------------------------------------------------------
 
 return [
-    'connector' => 'Sync'
+    'connector' => 'Sync',
+    
+    'Sync' => [],
+    
+    'database' => [
+        'expire'  => 60,
+        'default' => 'default',
+        'table'   => 'jobs',
+        'dsn'     => []
+    ],
+    
+    'redis' => [
+        'expire'     => 60,
+        'default'    => 'default',
+        'host'       => '127.0.0.1',
+        'port'       => 6379,
+        'password'   => '',
+        'select'     => 0,
+        'timeout'    => 0,
+        'persistent' => false
+    ],
+
+    'topthink' => [
+        'token'       => '',
+        'project_id'  => '',
+        'protocol'    => 'https',
+        'host'        => 'qns.topthink.com',
+        'port'        => 443,
+        'api_version' => 1,
+        'max_retries' => 3,
+        'default'     => 'default'
+    ],
 ];
