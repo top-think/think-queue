@@ -65,7 +65,7 @@ class Work extends Command
         $memory = $input->getOption('memory');
 
         if ($input->getOption('daemon')) {
-            Hook::listen('worker_daemon_start',$queue);
+            Hook::listen('worker_daemon_start', $queue);
             $this->daemon(
                 $queue, $delay, $memory,
                 $input->getOption('sleep'), $input->getOption('tries')
@@ -109,12 +109,12 @@ class Work extends Command
             );
 
             if ( $this->memoryExceeded($memory) ) {
-                Hook::listen('worker_memory_exceeded',$queue);
+                Hook::listen('worker_memory_exceeded', $queue);
                 $this->stop();
             }
             
             if ( $this->queueShouldRestart($lastRestart) ) {
-                Hook::listen('worker_queue_restart',$queue);
+                Hook::listen('worker_queue_restart', $queue);
                 $this->stop();
             }
         }
