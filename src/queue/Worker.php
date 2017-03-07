@@ -32,11 +32,11 @@ class Worker
         $job = $this->getNextJob($queue);
 
         if (!is_null($job)) {
-            Hook::listen('worker_before_process',$queue);
+            Hook::listen('worker_before_process', $queue);
             return $this->process($job, $maxTries, $delay);
         }
 
-        Hook::listen('worker_before_sleep',$queue);
+        Hook::listen('worker_before_sleep', $queue);
         $this->sleep($sleep);
 
         return ['job' => null, 'failed' => false];
