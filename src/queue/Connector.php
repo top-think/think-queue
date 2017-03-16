@@ -66,4 +66,14 @@ abstract class Connector
 
         return $payload;
     }
+
+    /**
+     * 根据队列名称获取该队列的 expire 时间.<br>
+     * 用户可以在配置文件的 'expire_override'段中分别设置不同队列的expire时间<br>
+     * 未配置'expire_override'时，取'expire'段中配置的时间<br>
+     * 配置了'expire_override'时，取'expire_override'中对应的$queue配置的时间<br>
+     * 'expire_override'中配置的值也允许为null，表示不检查该队列的过期任务<br>
+     * @param $queue
+     */
+    abstract protected function getQueueExpireTime($queue);
 }
