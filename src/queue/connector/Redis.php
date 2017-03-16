@@ -74,7 +74,7 @@ class Redis extends Connector
 
         $this->migrateExpiredJobs($queue . ':delayed', $queue, false);
 
-        if (!is_null($this->options['expire'])) {
+        if (!is_null($this->getQueueExpireTime($queue))) {
             $this->migrateExpiredJobs($queue . ':reserved', $queue);
         }
 
@@ -232,5 +232,19 @@ class Redis extends Connector
     protected function getQueue($queue)
     {
         return 'queues:' . ($queue ?: $this->options['default']);
+    }
+
+    /**
+     * 根据队列名称获取该队列的 expire 时间
+     * @param  string $queue
+     * @return int|null
+     */
+    protected function getQueueExpireTime($queue) 
+    {
+        if (isset($this->options['expire_override']) and is_array($this->options['expire_override']) and array_key_exists($queue, $this->options['expire_override'])) {
+            return $this->options['expire_override'][$queue];
+        }else{
+            return $this->options['expire'];
+        }
     }
 }
