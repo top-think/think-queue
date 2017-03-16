@@ -223,7 +223,7 @@ class Topthink extends Connector
         throw new \RuntimeException('pop queues not support for this type');
     }
 
-    protected function getQueueExpire($queue) 
+    protected function getQueueExpireTime($queue) 
     {
         
     }

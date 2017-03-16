@@ -241,7 +241,7 @@ class Redis extends Connector
      */
     protected function getQueueExpireTime($queue) 
     {
-        $queue = ltrim($queue , 'queues:');
+        $queue = ltrim($queue, 'queues:');
         if (isset($this->options['expire_override']) and is_array($this->options['expire_override']) and array_key_exists($queue, $this->options['expire_override'])) {
             return $this->options['expire_override'][$queue];
         }else{
