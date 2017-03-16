@@ -54,4 +54,9 @@ class Sync extends Connector
         return new SyncJob($payload);
     }
 
+    protected function getQueueExpireTime($queue) 
+    {
+        
+    }
+
 }
