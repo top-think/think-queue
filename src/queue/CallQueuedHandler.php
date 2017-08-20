@@ -16,7 +16,7 @@ class CallQueuedHandler
 
     public function call(Job $job, array $data)
     {
-        $command = unserialize($data['command']);
+        $command = unserialize($data['command'],$job,$data);
 
         call_user_func([$command, 'handle']);
 
