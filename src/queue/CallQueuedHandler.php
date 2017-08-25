@@ -16,9 +16,9 @@ class CallQueuedHandler
 
     public function call(Job $job, array $data)
     {
-        $command = unserialize($data['command'],$job,$data);
+        $command = unserialize($data['command']);
 
-        call_user_func([$command, 'handle']);
+        call_user_func([$command, 'handle'],$job,$data);
 
         if (!$job->isDeletedOrReleased()) {
             $job->delete();
