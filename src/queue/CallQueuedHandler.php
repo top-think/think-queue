@@ -18,7 +18,7 @@ class CallQueuedHandler
     {
         $command = unserialize($data['command']);
 
-        call_user_func([$command, 'handle'],$job,$data);
+        call_user_func([$command, 'handle'], $job, $data);
 
         if (!$job->isDeletedOrReleased()) {
             $job->delete();
@@ -30,7 +30,7 @@ class CallQueuedHandler
         $command = unserialize($data['command']);
 
         if (method_exists($command, 'failed')) {
-            $command->failed();
+            $command->failed($data);
         }
     }
 }
