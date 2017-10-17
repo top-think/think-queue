@@ -12,8 +12,8 @@
 namespace think\queue\connector;
 
 use think\exception\HttpException;
+use think\facade\Request;
 use think\queue\Connector;
-use think\Request;
 use think\queue\job\Topthink as TopthinkJob;
 use think\Response;
 
@@ -27,7 +27,7 @@ class Topthink extends Connector
         'port'        => 443,
         'api_version' => 1,
         'max_retries' => 3,
-        'default'     => 'default'
+        'default'     => 'default',
     ];
 
     /** @var  Request */
@@ -50,8 +50,6 @@ class Topthink extends Connector
         $this->url = "{$this->options['protocol']}://{$this->options['host']}:{$this->options['port']}/v{$this->options['api_version']}/";
 
         $this->headers['Authorization'] = "Bearer {$this->options['token']}";
-
-        $this->request = Request::instance();
     }
 
     public function push($job, $data = '', $queue = null)
@@ -71,8 +69,8 @@ class Topthink extends Connector
 
     public function marshal()
     {
-        $job = new TopthinkJob($this, $this->marshalPushedJob(), $this->request->header('topthink-message-queue'));
-        if ($this->request->header('topthink-message-status') == 'success') {
+        $job = new TopthinkJob($this, $this->marshalPushedJob(), Request::header('topthink-message-queue'));
+        if (Request::header('topthink-message-status') == 'success') {
             $job->fire();
         } else {
             $job->failed();
@@ -88,7 +86,7 @@ class Topthink extends Connector
         $message    = [
             'payload'  => $payload,
             'attempts' => $attempts,
-            'delay'    => $delay
+            'delay'    => $delay,
         ];
 
         return $this->apiCall('POST', $url, $message)->id;
@@ -105,7 +103,7 @@ class Topthink extends Connector
     {
         $url = "{$this->url}$url";
 
-        if ($this->curl == null) {
+        if (null == $this->curl) {
             $this->curl = curl_init();
         }
 
@@ -140,7 +138,7 @@ class Topthink extends Connector
 
         $headers = [];
         foreach ($this->headers as $k => $v) {
-            if ($k == 'Connection') {
+            if ('Connection' == $k) {
                 $v = 'Close';
             }
             $headers[] = "$k: $v";
@@ -156,7 +154,7 @@ class Topthink extends Connector
     {
         for ($retry = 0; $retry < $this->options['max_retries']; $retry++) {
             $out = curl_exec($this->curl);
-            if ($out === false) {
+            if (false === $out) {
                 $this->reportHttpError(0, curl_error($this->curl));
             }
             $this->last_status = curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
@@ -178,7 +176,7 @@ class Topthink extends Connector
         $data = json_decode($response);
 
         $json_error = json_last_error();
-        if ($json_error != JSON_ERROR_NONE) {
+        if (JSON_ERROR_NONE != $json_error) {
             throw new \RuntimeException($json_error);
         }
 
@@ -204,15 +202,15 @@ class Topthink extends Connector
     protected function marshalPushedJob()
     {
         return (object) [
-            'id'       => $this->request->header('topthink-message-id'),
-            'payload'  => $this->request->getContent(),
-            'attempts' => $this->request->header('topthink-message-attempts')
+            'id'       => Request::header('topthink-message-id'),
+            'payload'  => Request::getContent(),
+            'attempts' => Request::header('topthink-message-attempts'),
         ];
     }
 
     public function __destruct()
     {
-        if ($this->curl != null) {
+        if (null != $this->curl) {
             curl_close($this->curl);
             $this->curl = null;
         }
