@@ -11,7 +11,6 @@
 
 namespace think;
 
-use think\facade\Config;
 use think\helper\Str;
 use think\queue\Connector;
 
@@ -31,7 +30,7 @@ class Queue
 
     private static function buildConnector()
     {
-        $options = Config::pull('queue');
+        $options = \think\facade\Config::pull('queue');
         $type    = !empty($options['connector']) ? $options['connector'] : 'Sync';
 
         if (!isset(self::$connector)) {
