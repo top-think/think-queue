@@ -64,6 +64,8 @@ class Redis extends Connector
         $payload = $this->createPayload($job, $data);
 
         $this->redis->zAdd($this->getQueue($queue) . ':delayed', time() + $delay, $payload);
+
+        return json_decode($payload, true)['id'];
     }
 
     public function pop($queue = null)
@@ -101,6 +103,8 @@ class Redis extends Connector
         $payload = $this->setMeta($payload, 'attempts', $attempts);
 
         $this->redis->zAdd($this->getQueue($queue) . ':delayed', time() + $delay, $payload);
+
+        return json_decode($payload, true)['id'];
     }
 
     public function pushRaw($payload, $queue = null)
