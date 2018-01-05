@@ -23,10 +23,10 @@ class Database extends Connector
         'expire'  => 60,
         'default' => 'default',
         'table'   => 'jobs',
-        'dsn'     => []
+        'dsn'     => [],
     ];
 
-    public function __construct($options)
+    public function __construct(array $options)
     {
         if (!empty($options)) {
             $this->options = array_merge($this->options, $options);
@@ -94,7 +94,7 @@ class Database extends Connector
             'reserved'     => 0,
             'reserved_at'  => null,
             'available_at' => time() + $delay,
-            'created_at'   => time()
+            'created_at'   => time(),
         ]);
     }
 
@@ -129,7 +129,7 @@ class Database extends Connector
     {
         $this->db->name($this->options['table'])->where('id', $id)->update([
             'reserved'    => 1,
-            'reserved_at' => time()
+            'reserved_at' => time(),
         ]);
     }
 
@@ -150,7 +150,7 @@ class Database extends Connector
             ->update([
                 'reserved'    => 0,
                 'reserved_at' => null,
-                'attempts'    => ['exp', 'attempts + 1']
+                'attempts'    => ['exp', 'attempts + 1'],
             ]);
     }
 
