@@ -65,6 +65,7 @@ class Listener
 
         while (true) {
             $this->runProcess($process, $memory);
+            sleep($this->sleep);
         }
     }
 
@@ -93,7 +94,7 @@ class Listener
     public function makeProcess($queue, $delay, $memory, $timeout)
     {
         $string  = $this->workerCommand;
-        $command = sprintf($string, $queue, $delay, $memory, $this->sleep, $this->maxTries);
+        $command = sprintf($string, $queue, $delay, $memory, 0, $this->maxTries);
 
         return new Process($command, $this->commandPath, null, null, $timeout);
     }
