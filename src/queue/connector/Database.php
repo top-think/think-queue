@@ -147,10 +147,10 @@ class Database extends Connector
             ->where('queue', $this->getQueue($queue))
             ->where('reserved', 1)
             ->where('reserved_at', '<=', $expired)
+            ->exp('attempts'    , 'attempts + 1')
             ->update([
                 'reserved'    => 0,
-                'reserved_at' => null,
-                'attempts'    => ['exp', 'attempts + 1']
+                'reserved_at' => null
             ]);
     }
 
