@@ -17,13 +17,11 @@ use think\queue\job\Database as DatabaseJob;
 
 class Database extends Connector
 {
-    protected $db;
 
     protected $options = [
         'expire'  => 60,
         'default' => 'default',
-        'table'   => 'jobs',
-        'dsn'     => [],
+        'table'   => 'jobs'
     ];
 
     public function __construct(array $options)
@@ -31,8 +29,6 @@ class Database extends Connector
         if (!empty($options)) {
             $this->options = array_merge($this->options, $options);
         }
-
-        $this->db = Db::connect($this->options['dsn']);
     }
 
     public function push($job, $data = '', $queue = null)
@@ -56,16 +52,17 @@ class Database extends Connector
         if ($job = $this->getNextAvailableJob($queue)) {
             $this->markJobAsReserved($job->id);
 
-            $this->db->commit();
+            Db::commit();
 
             return new DatabaseJob($this, $job, $queue);
         }
 
-        $this->db->commit();
+        Db::commit();
     }
 
     /**
      * 重新发布任务
+     *
      * @param  string    $queue
      * @param  \StdClass $job
      * @param  int       $delay
@@ -87,7 +84,7 @@ class Database extends Connector
      */
     protected function pushToDatabase($delay, $queue, $payload, $attempts = 0)
     {
-        return $this->db->name($this->options['table'])->insert([
+        return Db::name($this->options['table'])->insert([
             'queue'        => $this->getQueue($queue),
             'payload'      => $payload,
             'attempts'     => $attempts,
@@ -106,9 +103,9 @@ class Database extends Connector
      */
     protected function getNextAvailableJob($queue)
     {
-        $this->db->startTrans();
+        Db::startTrans();
 
-        $job = $this->db->name($this->options['table'])
+        $job = Db::name($this->options['table'])
             ->lock(true)
             ->where('queue', $this->getQueue($queue))
             ->where('reserved', 0)
@@ -116,7 +113,7 @@ class Database extends Connector
             ->order('id', 'asc')
             ->find();
 
-        return $job ? (object) $job : null;
+        return $job ? (object)$job : null;
     }
 
     /**
@@ -127,7 +124,7 @@ class Database extends Connector
      */
     protected function markJobAsReserved($id)
     {
-        $this->db->name($this->options['table'])->where('id', $id)->update([
+        Db::name($this->options['table'])->where('id', $id)->update([
             'reserved'    => 1,
             'reserved_at' => time(),
         ]);
@@ -143,7 +140,7 @@ class Database extends Connector
     {
         $expired = time() - $this->options['expire'];
 
-        $this->db->name($this->options['table'])
+        Db::name($this->options['table'])
             ->where('queue', $this->getQueue($queue))
             ->where('reserved', 1)
             ->where('reserved_at', '<=', $expired)
@@ -156,12 +153,13 @@ class Database extends Connector
 
     /**
      * 删除任务
+     *
      * @param  string $id
      * @return void
      */
     public function deleteReserved($id)
     {
-        $this->db->name($this->options['table'])->delete($id);
+        Db::name($this->options['table'])->delete($id);
     }
 
     protected function getQueue($queue)
