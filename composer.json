@@ -1,5 +1,5 @@
 {
-    "name": "topthink/think5-queue",
+    "name": "maxsky/think5-queue",
     "description": "The ThinkPHP5 Queue Package",
     "type": "think-extend",
     "authors": [
