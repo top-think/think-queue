@@ -11,11 +11,9 @@
 
 namespace think\queue;
 
-class CallQueuedHandler
-{
+class CallQueuedHandler {
 
-    public function call(Job $job, array $data)
-    {
+    public function call(Job $job, array $data) {
         $command = unserialize($data['command']);
 
         call_user_func([$command, 'handle']);
@@ -25,8 +23,7 @@ class CallQueuedHandler
         }
     }
 
-    public function failed(array $data)
-    {
+    public function failed(array $data) {
         $command = unserialize($data['command']);
 
         if (method_exists($command, 'failed')) {

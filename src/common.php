@@ -20,13 +20,13 @@ if (!function_exists('queue')) {
 
     /**
      * 添加到队列
+     *
      * @param        $job
      * @param string $data
      * @param int    $delay
      * @param null   $queue
      */
-    function queue($job, $data = '', $delay = 0, $queue = null)
-    {
+    function queue($job, $data = '', $delay = 0, $queue = null) {
         if ($delay > 0) {
             \think\Queue::later($delay, $job, $data, $queue);
         } else {

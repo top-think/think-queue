@@ -15,19 +15,17 @@ use think\Db;
 use think\queue\Connector;
 use think\queue\job\Database as DatabaseJob;
 
-class Database extends Connector
-{
+class Database extends Connector {
     protected $db;
 
     protected $options = [
-        'expire'  => 60,
+        'expire' => 60,
         'default' => 'default',
-        'table'   => 'jobs',
-        'dsn'     => []
+        'table' => 'jobs',
+        'dsn' => []
     ];
 
-    public function __construct($options)
-    {
+    public function __construct($options) {
         if (!empty($options)) {
             $this->options = array_merge($this->options, $options);
         }
@@ -35,18 +33,15 @@ class Database extends Connector
         $this->db = Db::connect($this->options['dsn']);
     }
 
-    public function push($job, $data = '', $queue = null)
-    {
+    public function push($job, $data = '', $queue = null) {
         return $this->pushToDatabase(0, $queue, $this->createPayload($job, $data));
     }
 
-    public function later($delay, $job, $data = '', $queue = null)
-    {
+    public function later($delay, $job, $data = '', $queue = null) {
         return $this->pushToDatabase($delay, $queue, $this->createPayload($job, $data));
     }
 
-    public function pop($queue = null)
-    {
+    public function pop($queue = null) {
         $queue = $this->getQueue($queue);
 
         if (!is_null($this->options['expire'])) {
@@ -66,13 +61,13 @@ class Database extends Connector
 
     /**
      * 重新发布任务
+     *
      * @param  string    $queue
      * @param  \StdClass $job
      * @param  int       $delay
      * @return mixed
      */
-    public function release($queue, $job, $delay)
-    {
+    public function release($queue, $job, $delay) {
         return $this->pushToDatabase($delay, $queue, $job->payload, $job->attempts);
     }
 
@@ -85,16 +80,15 @@ class Database extends Connector
      * @param  int           $attempts
      * @return mixed
      */
-    protected function pushToDatabase($delay, $queue, $payload, $attempts = 0)
-    {
+    protected function pushToDatabase($delay, $queue, $payload, $attempts = 0) {
         return $this->db->name($this->options['table'])->insert([
-            'queue'        => $this->getQueue($queue),
-            'payload'      => $payload,
-            'attempts'     => $attempts,
-            'reserved'     => 0,
-            'reserved_at'  => null,
+            'queue' => $this->getQueue($queue),
+            'payload' => $payload,
+            'attempts' => $attempts,
+            'reserved' => 0,
+            'reserved_at' => null,
             'available_at' => time() + $delay,
-            'created_at'   => time()
+            'created_at' => time()
         ]);
     }
 
@@ -104,8 +98,7 @@ class Database extends Connector
      * @param  string|null $queue
      * @return \StdClass|null
      */
-    protected function getNextAvailableJob($queue)
-    {
+    protected function getNextAvailableJob($queue) {
         $this->db->startTrans();
 
         $job = $this->db->name($this->options['table'])
@@ -125,10 +118,9 @@ class Database extends Connector
      * @param  string $id
      * @return void
      */
-    protected function markJobAsReserved($id)
-    {
+    protected function markJobAsReserved($id) {
         $this->db->name($this->options['table'])->where('id', $id)->update([
-            'reserved'    => 1,
+            'reserved' => 1,
             'reserved_at' => time()
         ]);
     }
@@ -139,8 +131,7 @@ class Database extends Connector
      * @param  string $queue
      * @return void
      */
-    protected function releaseJobsThatHaveBeenReservedTooLong($queue)
-    {
+    protected function releaseJobsThatHaveBeenReservedTooLong($queue) {
         $expired = time() - $this->options['expire'];
 
         $this->db->name($this->options['table'])
@@ -148,24 +139,23 @@ class Database extends Connector
             ->where('reserved', 1)
             ->where('reserved_at', '<=', $expired)
             ->update([
-                'reserved'    => 0,
+                'reserved' => 0,
                 'reserved_at' => null,
-                'attempts'    => ['inc', 1]
+                'attempts' => ['inc', 1]
             ]);
     }
 
     /**
      * 删除任务
+     *
      * @param  string $id
      * @return void
      */
-    public function deleteReserved($id)
-    {
+    public function deleteReserved($id) {
         $this->db->name($this->options['table'])->delete($id);
     }
 
-    protected function getQueue($queue)
-    {
+    protected function getQueue($queue) {
         return $queue ?: $this->options['default'];
     }
 }

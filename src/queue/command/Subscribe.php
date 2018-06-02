@@ -19,10 +19,8 @@ use think\console\Output;
 use think\Queue;
 use think\Url;
 
-class Subscribe extends Command
-{
-    public function configure()
-    {
+class Subscribe extends Command {
+    public function configure() {
         $this->setName('queue:subscribe')
             ->setDescription('Subscribe a URL to an push queue')
             ->addArgument('name', Argument::REQUIRED, 'name')
@@ -31,8 +29,7 @@ class Subscribe extends Command
             ->addOption('option', null, Option::VALUE_IS_ARRAY | Option::VALUE_OPTIONAL, 'the options');
     }
 
-    public function execute(Input $input, Output $output)
-    {
+    public function execute(Input $input, Output $output) {
 
         $url = $input->getArgument('url');
         if (!preg_match('/^https?:\/\//', $url)) {

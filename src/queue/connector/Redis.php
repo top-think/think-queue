@@ -16,24 +16,22 @@ use think\helper\Str;
 use think\queue\Connector;
 use think\queue\job\Redis as RedisJob;
 
-class Redis extends Connector
-{
+class Redis extends Connector {
     /** @var  \Redis */
     protected $redis;
 
     protected $options = [
-        'expire'     => 60,
-        'default'    => 'default',
-        'host'       => '127.0.0.1',
-        'port'       => 6379,
-        'password'   => '',
-        'select'     => 0,
-        'timeout'    => 0,
+        'expire' => 60,
+        'default' => 'default',
+        'host' => '127.0.0.1',
+        'port' => 6379,
+        'password' => '',
+        'select' => 0,
+        'timeout' => 0,
         'persistent' => false
     ];
 
-    public function __construct($options)
-    {
+    public function __construct($options) {
         if (!extension_loaded('redis')) {
             throw new Exception('redis扩展未安装');
         }
@@ -41,7 +39,7 @@ class Redis extends Connector
             $this->options = array_merge($this->options, $options);
         }
 
-        $func        = $this->options['persistent'] ? 'pconnect' : 'connect';
+        $func = $this->options['persistent'] ? 'pconnect' : 'connect';
         $this->redis = new \Redis;
         $this->redis->$func($this->options['host'], $this->options['port'], $this->options['timeout']);
 
@@ -54,20 +52,41 @@ class Redis extends Connector
         }
     }
 
-    public function push($job, $data = '', $queue = null)
-    {
+    public function push($job, $data = '', $queue = null) {
         return $this->pushRaw($this->createPayload($job, $data), $queue);
     }
 
-    public function later($delay, $job, $data = '', $queue = null)
-    {
+    public function later($delay, $job, $data = '', $queue = null) {
         $payload = $this->createPayload($job, $data);
-
-        $this->redis->zAdd($this->getQueue($queue) . ':delayed', time() + $delay, $payload);
+        $time = time() + $delay;
+        return $this->redis->zAdd($this->getQueue($queue) . ':delayed', $time, $payload) ? $time : false;
     }
 
-    public function pop($queue = null)
-    {
+    /**
+     * 主动删除一个任务
+     *
+     * @param string $condition 条件，传入创建任务返回值，传入 score（创建 later 任务返回的时间戳）时 $type 需传入 later
+     * @param string $type 任务类型，默认 push，可选 later
+     * @param string $queue 队列名称，Key name，传入 null 为默认 default
+     *
+     * @return int|false 返回执行成功行数，执行失败返回 false
+     */
+    public function remove($condition, $type = 'push', $queue = null) {
+        $convert = json_decode($condition, true);
+        if (is_array($convert) && !empty(current($convert))) {
+            // 删除条件为 Key value（即 Json）时
+            if ($type === 'push') {
+                return $this->redis->lRem($this->getQueue($queue), $condition);
+            }
+            if ($type === 'later') {
+                return $this->redis->zRem($this->getQueue($queue) . ':delayed', $condition);
+            }
+            return false;
+        }
+        return $this->redis->zRemRangeByScore($this->getQueue($queue) . ':delayed', $condition, $condition);
+    }
+
+    public function pop($queue = null) {
         $original = $queue ?: $this->options['default'];
 
         $queue = $this->getQueue($queue);
@@ -96,22 +115,17 @@ class Redis extends Connector
      * @param  int    $attempts
      * @return void
      */
-    public function release($queue, $payload, $delay, $attempts)
-    {
+    public function release($queue, $payload, $delay, $attempts) {
         $payload = $this->setMeta($payload, 'attempts', $attempts);
 
         $this->redis->zAdd($this->getQueue($queue) . ':delayed', time() + $delay, $payload);
     }
 
-    public function pushRaw($payload, $queue = null)
-    {
-        $this->redis->rPush($this->getQueue($queue), $payload);
-
-        return json_decode($payload, true)['id'];
+    public function pushRaw($payload, $queue = null) {
+        return $this->redis->rPush($this->getQueue($queue), $payload) ? $payload : false;
     }
 
-    protected function createPayload($job, $data = '', $queue = null)
-    {
+    protected function createPayload($job, $data = '', $queue = null) {
         $payload = $this->setMeta(
             parent::createPayload($job, $data), 'id', $this->getRandomId()
         );
@@ -126,9 +140,8 @@ class Redis extends Connector
      * @param  string $job
      * @return void
      */
-    public function deleteReserved($queue, $job)
-    {
-        $this->redis->zRem($this->getQueue($queue) . ':reserved', $job);
+    public function deleteReserved($queue, $job) {
+        return $this->redis->zRem($this->getQueue($queue) . ':reserved', $job);
     }
 
     /**
@@ -138,8 +151,7 @@ class Redis extends Connector
      * @param string $to
      * @param bool   $attempt
      */
-    public function migrateExpiredJobs($from, $to, $attempt = true)
-    {
+    public function migrateExpiredJobs($from, $to, $attempt = true) {
         $this->redis->watch($from);
 
         $jobs = $this->getExpiredJobs(
@@ -156,10 +168,10 @@ class Redis extends Connector
 
     /**
      * redis事务
+     *
      * @param \Closure $closure
      */
-    protected function transaction(\Closure $closure)
-    {
+    protected function transaction(\Closure $closure) {
         $this->redis->multi();
         try {
             call_user_func($closure);
@@ -178,8 +190,7 @@ class Redis extends Connector
      * @param  int    $time
      * @return array
      */
-    protected function getExpiredJobs($from, $time)
-    {
+    protected function getExpiredJobs($from, $time) {
         return $this->redis->zRangeByScore($from, '-inf', $time);
     }
 
@@ -190,8 +201,7 @@ class Redis extends Connector
      * @param  int    $time
      * @return void
      */
-    protected function removeExpiredJobs($from, $time)
-    {
+    protected function removeExpiredJobs($from, $time) {
         $this->redis->zRemRangeByScore($from, '-inf', $time);
     }
 
@@ -202,12 +212,11 @@ class Redis extends Connector
      * @param  array   $jobs
      * @param  boolean $attempt
      */
-    protected function pushExpiredJobsOntoNewQueue($to, $jobs, $attempt = true)
-    {
+    protected function pushExpiredJobsOntoNewQueue($to, $jobs, $attempt = true) {
         if ($attempt) {
             foreach ($jobs as &$job) {
                 $attempts = json_decode($job, true)['attempts'];
-                $job      = $this->setMeta($job, 'attempts', $attempts + 1);
+                $job = $this->setMeta($job, 'attempts', $attempts + 1);
             }
         }
         call_user_func_array([$this->redis, 'rPush'], array_merge([$to], $jobs));
@@ -218,8 +227,7 @@ class Redis extends Connector
      *
      * @return string
      */
-    protected function getRandomId()
-    {
+    protected function getRandomId() {
         return Str::random(32);
     }
 
@@ -229,8 +237,7 @@ class Redis extends Connector
      * @param  string|null $queue
      * @return string
      */
-    protected function getQueue($queue)
-    {
+    protected function getQueue($queue) {
         return 'queues:' . ($queue ?: $this->options['default']);
     }
 }

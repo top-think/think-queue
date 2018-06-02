@@ -11,55 +11,55 @@
 
 namespace think\queue\job;
 
-use think\queue\Job;
 use think\queue\connector\Redis as RedisQueue;
+use think\queue\Job;
 
-class Redis extends Job
-{
+class Redis extends Job {
 
     /**
      * The redis queue instance.
+     *
      * @var RedisQueue
      */
     protected $redis;
 
     /**
      * The database job payload.
+     *
      * @var Object
      */
     protected $job;
 
-    public function __construct(RedisQueue $redis, $job, $queue)
-    {
-        $this->job   = $job;
+    public function __construct(RedisQueue $redis, $job, $queue) {
+        $this->job = $job;
         $this->queue = $queue;
         $this->redis = $redis;
     }
 
     /**
      * Fire the job.
+     *
      * @return void
      */
-    public function fire()
-    {
+    public function fire() {
         $this->resolveAndFire(json_decode($this->getRawBody(), true));
     }
 
     /**
      * Get the number of times the job has been attempted.
+     *
      * @return int
      */
-    public function attempts()
-    {
+    public function attempts() {
         return json_decode($this->job, true)['attempts'];
     }
 
     /**
      * Get the raw body string for the job.
+     *
      * @return string
      */
-    public function getRawBody()
-    {
+    public function getRawBody() {
         return $this->job;
     }
 
@@ -68,8 +68,7 @@ class Redis extends Job
      *
      * @return void
      */
-    public function delete()
-    {
+    public function delete() {
         parent::delete();
 
         $this->redis->deleteReserved($this->queue, $this->job);
@@ -81,8 +80,7 @@ class Redis extends Job
      * @param  int $delay
      * @return void
      */
-    public function release($delay = 0)
-    {
+    public function release($delay = 0) {
         parent::release($delay);
 
         $this->delete();

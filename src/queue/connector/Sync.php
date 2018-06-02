@@ -16,11 +16,9 @@ use think\queue\Connector;
 use think\queue\job\Sync as SyncJob;
 use Throwable;
 
-class Sync extends Connector
-{
+class Sync extends Connector {
 
-    public function push($job, $data = '', $queue = null)
-    {
+    public function push($job, $data = '', $queue = null) {
         $queueJob = $this->resolveJob($this->createPayload($job, $data, $queue));
 
         try {
@@ -39,18 +37,15 @@ class Sync extends Connector
         return 0;
     }
 
-    public function later($delay, $job, $data = '', $queue = null)
-    {
+    public function later($delay, $job, $data = '', $queue = null) {
         return $this->push($job, $data, $queue);
     }
 
-    public function pop($queue = null)
-    {
+    public function pop($queue = null) {
 
     }
 
-    protected function resolveJob($payload)
-    {
+    protected function resolveJob($payload) {
         return new SyncJob($payload);
     }
 
