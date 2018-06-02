@@ -20,6 +20,7 @@ use think\queue\Connector;
  *
  * @method static push($job, $data = '', $queue = null)
  * @method static later($delay, $job, $data = '', $queue = null)
+ * @method static remove($condition, $type = 'push', $queue = null)
  * @method static pop($queue = null)
  * @method static marshal()
  */

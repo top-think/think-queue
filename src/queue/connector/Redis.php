@@ -62,12 +62,36 @@ class Redis extends Connector
     public function later($delay, $job, $data = '', $queue = null)
     {
         $payload = $this->createPayload($job, $data);
-
-        $this->redis->zAdd($this->getQueue($queue) . ':delayed', time() + $delay, $payload);
+        $time = time() + $delay;
+        return $this->redis->zAdd($this->getQueue($queue) . ':delayed', $time, $payload) ? $time : false;
     }
 
-    public function pop($queue = null)
+    /**
+     * 主动删除一个任务
+     *
+     * @param string $condition 条件，传入创建任务返回值，传入 score（创建 later 任务返回的时间戳）时 $type 需传入 later
+     * @param string $type 任务类型，默认 push，可选 later
+     * @param string $queue 队列名称，Key name，传入 null 为默认 default
+     *
+     * @return int|false 返回执行成功行数，执行失败返回 false
+     */
+    public function remove($condition, $type = 'push', $queue = null)
     {
+        $convert = json_decode($condition, true);
+        if (is_array($convert) && !empty(current($convert))) {
+            // 删除条件为 Key value（即 Json）时
+            if ($type === 'push') {
+                return $this->redis->lRem($this->getQueue($queue), $condition);
+            }
+            if ($type === 'later') {
+                return $this->redis->zRem($this->getQueue($queue) . ':delayed', $condition);
+            }
+            return false;
+        }
+        return $this->redis->zRemRangeByScore($this->getQueue($queue) . ':delayed', $condition, $condition);
+    }
+
+    public function pop($queue = null) {
         $original = $queue ?: $this->options['default'];
 
         $queue = $this->getQueue($queue);
@@ -105,9 +129,7 @@ class Redis extends Connector
 
     public function pushRaw($payload, $queue = null)
     {
-        $this->redis->rPush($this->getQueue($queue), $payload);
-
-        return json_decode($payload, true)['id'];
+        return $this->redis->rPush($this->getQueue($queue), $payload) ? $payload : false;
     }
 
     protected function createPayload($job, $data = '', $queue = null)
@@ -128,7 +150,7 @@ class Redis extends Connector
      */
     public function deleteReserved($queue, $job)
     {
-        $this->redis->zRem($this->getQueue($queue) . ':reserved', $job);
+        return $this->redis->zRem($this->getQueue($queue) . ':reserved', $job);
     }
 
     /**
