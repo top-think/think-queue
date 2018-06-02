@@ -1,11 +1,17 @@
 {
-    "name": "topthink/think-queue",
+    "name": "topthink/think5-queue",
     "description": "The ThinkPHP5 Queue Package",
     "type": "think-extend",
     "authors": [
         {
             "name": "yunwuxin",
             "email": "448901948@qq.com"
+        }
+    ],
+    "editor": [
+        {
+            "name": "Max Sky",
+            "email": "admin@maxsky.cc"
         }
     ],
     "license": "Apache-2.0",
