@@ -11,7 +11,6 @@
 
 namespace think\queue;
 
-interface ShouldQueue
-{
+interface ShouldQueue {
 
 }

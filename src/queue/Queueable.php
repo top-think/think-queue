@@ -11,8 +11,7 @@
 
 namespace think\queue;
 
-trait Queueable
-{
+trait Queueable {
 
     /** @var string 队列名称 */
     public $queue;
@@ -22,11 +21,11 @@ trait Queueable
 
     /**
      * 设置队列名
+     *
      * @param $queue
      * @return $this
      */
-    public function queue($queue)
-    {
+    public function queue($queue) {
         $this->queue = $queue;
 
         return $this;
@@ -34,11 +33,11 @@ trait Queueable
 
     /**
      * 设置延迟时间
+     *
      * @param $delay
      * @return $this
      */
-    public function delay($delay)
-    {
+    public function delay($delay) {
         $this->delay = $delay;
 
         return $this;

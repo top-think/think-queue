@@ -16,15 +16,12 @@ use think\console\Command;
 use think\console\Input;
 use think\console\Output;
 
-class Restart extends Command
-{
-    public function configure()
-    {
+class Restart extends Command {
+    public function configure() {
         $this->setName('queue:restart')->setDescription('Restart queue worker daemons after their current job');
     }
 
-    public function execute(Input $input, Output $output)
-    {
+    public function execute(Input $input, Output $output) {
         Cache::set('think:queue:restart', time());
         $output->writeln("<info>Broadcasting queue restart signal.</info>");
     }

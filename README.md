@@ -7,7 +7,7 @@
 > 配置文件位于 `application/extra/queue.php`
 ### 公共配置
 
-```
+```PHP
 [
     'connector'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动,topthink:Topthink驱动
                    //或其他自定义的完整的类名
@@ -21,7 +21,7 @@
 ## 使用 Database
 > 创建如下数据表
 
-```
+```SQL
 CREATE TABLE `prefix_jobs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `queue` varchar(255) NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE `prefix_jobs` (
 
 ### 下面写两个例子
 
-```
+```PHP
 namespace app\job;
 
 use think\queue\Job;
@@ -77,11 +77,9 @@ class Job1{
     }
 
 }
-
 ```
 
-```
-
+```PHP
 namespace app\lib\job;
 
 use think\queue\Job;
@@ -104,7 +102,6 @@ class Job2{
     }
 
 }
-
 ```
 
 
@@ -121,6 +118,17 @@ class Job2{
 
 `$queue` 队列名，指定这个任务是在哪个队列上执行，同下面监控队列的时候指定的队列名,可不填
 
+
+## 主动删除任务
+
+```PHP
+Queue::remove($jobReturnValue, 'push', $queue);
+```
+
+`$jobReturnValue` 为创建任务时得到的返回值；`$type` 为需要删除的任务类型，默认为 `push`，可传入 `later`；`$queue` 为队列名称。
+
+默认情况下删除 `push` 任务只需要传入第一个值即可。删除 `later` 任务第二个值传入 `later` 即可。
+
 ## 监听任务并执行
 
 > php think queue:listen
@@ -130,13 +138,3 @@ class Job2{
 两种，具体的可选参数可以输入命令加 --help 查看
 
 >可配合supervisor使用，保证进程常驻
-
-## 主动删除任务
-
-```php
-Queue::remove($jobReturnValue, 'push', $queue);
-```
-
-`$jobReturnValue` 为创建任务时得到的返回值；`$type` 为需要删除的任务类型，默认为 `push`，可传入 `later`；`$queue` 为队列名称。
-
-默认情况下删除 `push` 任务只需要传入第一个值即可。删除 `later` 任务第二个值传入 `later` 即可。

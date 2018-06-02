@@ -13,8 +13,7 @@ namespace think\queue\job;
 
 use think\queue\Job;
 
-class Sync extends Job
-{
+class Sync extends Job {
     /**
      * The queue message data.
      *
@@ -22,35 +21,34 @@ class Sync extends Job
      */
     protected $payload;
 
-    public function __construct($payload)
-    {
+    public function __construct($payload) {
         $this->payload = $payload;
     }
 
     /**
      * Fire the job.
+     *
      * @return void
      */
-    public function fire()
-    {
+    public function fire() {
         $this->resolveAndFire(json_decode($this->payload, true));
     }
 
     /**
      * Get the number of times the job has been attempted.
+     *
      * @return int
      */
-    public function attempts()
-    {
+    public function attempts() {
         return 1;
     }
 
     /**
      * Get the raw body string for the job.
+     *
      * @return string
      */
-    public function getRawBody()
-    {
+    public function getRawBody() {
         return $this->payload;
     }
 }

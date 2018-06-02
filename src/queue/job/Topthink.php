@@ -11,11 +11,10 @@
 
 namespace think\queue\job;
 
-use think\queue\Job;
 use think\queue\connector\Topthink as TopthinkQueue;
+use think\queue\Job;
 
-class Topthink extends Job
-{
+class Topthink extends Job {
 
     /**
      * The Iron queue instance.
@@ -31,41 +30,38 @@ class Topthink extends Job
      */
     protected $job;
 
-    public function __construct(TopthinkQueue $topthink, $job, $queue)
-    {
-        $this->topthink      = $topthink;
-        $this->job           = $job;
-        $this->queue         = $queue;
+    public function __construct(TopthinkQueue $topthink, $job, $queue) {
+        $this->topthink = $topthink;
+        $this->job = $job;
+        $this->queue = $queue;
         $this->job->attempts = $this->job->attempts + 1;
     }
 
     /**
      * Fire the job.
+     *
      * @return void
      */
-    public function fire()
-    {
+    public function fire() {
         $this->resolveAndFire(json_decode($this->job->payload, true));
     }
 
     /**
      * Get the number of times the job has been attempted.
+     *
      * @return int
      */
-    public function attempts()
-    {
+    public function attempts() {
         return (int) $this->job->attempts;
     }
 
-    public function delete()
-    {
+    public function delete() {
         parent::delete();
 
         $this->topthink->deleteMessage($this->queue, $this->job->id);
     }
 
-    public function release($delay = 0)
-    {
+    public function release($delay = 0) {
         parent::release($delay);
 
         $this->delete();
@@ -75,10 +71,10 @@ class Topthink extends Job
 
     /**
      * Get the raw body string for the job.
+     *
      * @return string
      */
-    public function getRawBody()
-    {
+    public function getRawBody() {
         return $this->job->payload;
     }
 

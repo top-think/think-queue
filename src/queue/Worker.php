@@ -15,19 +15,18 @@ use Exception;
 use think\Hook;
 use think\Queue;
 
-class Worker
-{
+class Worker {
 
     /**
      * 执行下个任务
+     *
      * @param  string $queue
      * @param  int    $delay
      * @param  int    $sleep
      * @param  int    $maxTries
      * @return array
      */
-    public function pop($queue = null, $delay = 0, $sleep = 3, $maxTries = 0)
-    {
+    public function pop($queue = null, $delay = 0, $sleep = 3, $maxTries = 0) {
 
         $job = $this->getNextJob($queue);
 
@@ -44,11 +43,11 @@ class Worker
 
     /**
      * 获取下个任务
+     *
      * @param  string $queue
      * @return Job
      */
-    protected function getNextJob($queue)
-    {
+    protected function getNextJob($queue) {
         if (is_null($queue)) {
             return Queue::pop();
         }
@@ -62,14 +61,14 @@ class Worker
 
     /**
      * Process a given job from the queue.
+     *
      * @param \think\queue\Job $job
      * @param  int             $maxTries
      * @param  int             $delay
      * @return array
      * @throws Exception
      */
-    public function process(Job $job, $maxTries = 0, $delay = 0)
-    {
+    public function process(Job $job, $maxTries = 0, $delay = 0) {
         if ($maxTries > 0 && $job->attempts() > $maxTries) {
             return $this->logFailedJob($job);
         }
@@ -89,11 +88,11 @@ class Worker
 
     /**
      * Log a failed job into storage.
+     *
      * @param  \Think\Queue\Job $job
      * @return array
      */
-    protected function logFailedJob(Job $job)
-    {
+    protected function logFailedJob(Job $job) {
         if (!$job->isDeleted()) {
             try {
                 $job->delete();
@@ -108,11 +107,11 @@ class Worker
 
     /**
      * Sleep the script for a given number of seconds.
+     *
      * @param  int $seconds
      * @return void
      */
-    public function sleep($seconds)
-    {
+    public function sleep($seconds) {
         sleep($seconds);
     }
 

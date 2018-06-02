@@ -13,21 +13,20 @@ namespace think\queue\connector;
 
 use think\exception\HttpException;
 use think\queue\Connector;
-use think\Request;
 use think\queue\job\Topthink as TopthinkJob;
+use think\Request;
 use think\Response;
 
-class Topthink extends Connector
-{
+class Topthink extends Connector {
     protected $options = [
-        'token'       => '',
-        'project_id'  => '',
-        'protocol'    => 'https',
-        'host'        => 'qns.topthink.com',
-        'port'        => 443,
+        'token' => '',
+        'project_id' => '',
+        'protocol' => 'https',
+        'host' => 'qns.topthink.com',
+        'port' => 443,
         'api_version' => 1,
         'max_retries' => 3,
-        'default'     => 'default'
+        'default' => 'default'
     ];
 
     /** @var  Request */
@@ -41,8 +40,7 @@ class Topthink extends Connector
 
     protected $headers = [];
 
-    public function __construct($options)
-    {
+    public function __construct($options) {
         if (!empty($options)) {
             $this->options = array_merge($this->options, $options);
         }
@@ -54,23 +52,19 @@ class Topthink extends Connector
         $this->request = Request::instance();
     }
 
-    public function push($job, $data = '', $queue = null)
-    {
+    public function push($job, $data = '', $queue = null) {
         return $this->pushRaw(0, $queue, $this->createPayload($job, $data));
     }
 
-    public function later($delay, $job, $data = '', $queue = null)
-    {
+    public function later($delay, $job, $data = '', $queue = null) {
         return $this->pushRaw($delay, $queue, $this->createPayload($job, $data));
     }
 
-    public function release($queue, $job, $delay)
-    {
+    public function release($queue, $job, $delay) {
         return $this->pushRaw($delay, $queue, $job->payload, $job->attempts);
     }
 
-    public function marshal()
-    {
+    public function marshal() {
         $job = new TopthinkJob($this, $this->marshalPushedJob(), $this->request->header('topthink-message-queue'));
         if ($this->request->header('topthink-message-status') == 'success') {
             $job->fire();
@@ -80,29 +74,26 @@ class Topthink extends Connector
         return new Response('OK');
     }
 
-    public function pushRaw($delay, $queue, $payload, $attempts = 0)
-    {
+    public function pushRaw($delay, $queue, $payload, $attempts = 0) {
         $queue_name = $this->getQueue($queue);
-        $queue      = rawurlencode($queue_name);
-        $url        = "project/{$this->options['project_id']}/queue/{$queue}/message";
-        $message    = [
-            'payload'  => $payload,
+        $queue = rawurlencode($queue_name);
+        $url = "project/{$this->options['project_id']}/queue/{$queue}/message";
+        $message = [
+            'payload' => $payload,
             'attempts' => $attempts,
-            'delay'    => $delay
+            'delay' => $delay
         ];
 
         return $this->apiCall('POST', $url, $message)->id;
     }
 
-    public function deleteMessage($queue, $id)
-    {
+    public function deleteMessage($queue, $id) {
         $queue = rawurlencode($queue);
-        $url   = "project/{$this->options['project_id']}/queue/{$queue}/message/{$id}";
+        $url = "project/{$this->options['project_id']}/queue/{$queue}/message/{$id}";
         return $this->apiCall('DELETE', $url);
     }
 
-    protected function apiCall($type, $url, $params = [])
-    {
+    protected function apiCall($type, $url, $params = []) {
         $url = "{$this->url}$url";
 
         if ($this->curl == null) {
@@ -152,8 +143,7 @@ class Topthink extends Connector
         return $this->callWithRetries();
     }
 
-    protected function callWithRetries()
-    {
+    protected function callWithRetries() {
         for ($retry = 0; $retry < $this->options['max_retries']; $retry++) {
             $out = curl_exec($this->curl);
             if ($out === false) {
@@ -173,8 +163,7 @@ class Topthink extends Connector
         return;
     }
 
-    protected static function jsonDecode($response)
-    {
+    protected static function jsonDecode($response) {
         $data = json_decode($response);
 
         $json_error = json_last_error();
@@ -185,14 +174,12 @@ class Topthink extends Connector
         return $data;
     }
 
-    protected static function waitRandomInterval($retry)
-    {
+    protected static function waitRandomInterval($retry) {
         $max_delay = pow(4, $retry) * 100 * 1000;
         usleep(rand(0, $max_delay));
     }
 
-    protected function reportHttpError($status, $text)
-    {
+    protected function reportHttpError($status, $text) {
         throw new HttpException($status, "http error: {$status} | {$text}");
     }
 
@@ -201,25 +188,22 @@ class Topthink extends Connector
      *
      * @return object
      */
-    protected function marshalPushedJob()
-    {
+    protected function marshalPushedJob() {
         return (object) [
-            'id'       => $this->request->header('topthink-message-id'),
-            'payload'  => $this->request->getContent(),
+            'id' => $this->request->header('topthink-message-id'),
+            'payload' => $this->request->getContent(),
             'attempts' => $this->request->header('topthink-message-attempts')
         ];
     }
 
-    public function __destruct()
-    {
+    public function __destruct() {
         if ($this->curl != null) {
             curl_close($this->curl);
             $this->curl = null;
         }
     }
 
-    public function pop($queue = null)
-    {
+    public function pop($queue = null) {
         throw new \RuntimeException('pop queues not support for this type');
     }
 }
