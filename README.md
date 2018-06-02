@@ -130,3 +130,13 @@ class Job2{
 两种，具体的可选参数可以输入命令加 --help 查看
 
 >可配合supervisor使用，保证进程常驻
+
+## 主动删除任务
+
+```php
+Queue::remove($jobReturnValue, 'push', $queue);
+```
+
+`$jobReturnValue` 为创建任务时得到的返回值；`$type` 为需要删除的任务类型，默认为 `push`，可传入 `later`；`$queue` 为队列名称。
+
+默认情况下删除 `push` 任务只需要传入第一个值即可。删除 `later` 任务第二个值传入 `later` 即可。
