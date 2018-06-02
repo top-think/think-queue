@@ -6,9 +6,7 @@
         {
             "name": "yunwuxin",
             "email": "448901948@qq.com"
-        }
-    ],
-    "editor": [
+        },
         {
             "name": "Max Sky",
             "email": "admin@maxsky.cc"
@@ -24,8 +22,8 @@
         ]
     },
     "require": {
-        "topthink/think-helper": ">=1.0.4",
-        "topthink/think-installer": ">=1.0.10"
+        "topthink/think-helper": ">=1.0.5",
+        "topthink/think-installer": ">=1.0.12"
     },
     "extra": {
         "think-config": {
