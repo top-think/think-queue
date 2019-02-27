@@ -1,4 +1,4 @@
-# think-queue for ThinkPHP5.1
+# think-queue for ThinkPHP5.2
 
 ## 安装
 

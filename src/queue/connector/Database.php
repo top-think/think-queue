@@ -11,7 +11,7 @@
 
 namespace think\queue\connector;
 
-use think\Db;
+use think\facade\Db;
 use think\queue\Connector;
 use think\queue\job\Database as DatabaseJob;
 
@@ -21,7 +21,7 @@ class Database extends Connector
     protected $options = [
         'expire'  => 60,
         'default' => 'default',
-        'table'   => 'jobs'
+        'table'   => 'jobs',
     ];
 
     public function __construct(array $options)

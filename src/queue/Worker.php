@@ -12,7 +12,6 @@
 namespace think\queue;
 
 use Exception;
-use think\facade\Hook;
 use think\Queue;
 
 class Worker
@@ -32,11 +31,11 @@ class Worker
         $job = $this->getNextJob($queue);
 
         if (!is_null($job)) {
-            Hook::listen('worker_before_process', $queue);
+            event('worker_before_process', $queue);
             return $this->process($job, $maxTries, $delay);
         }
 
-        Hook::listen('worker_before_sleep', $queue);
+        event('worker_before_sleep', $queue);
         $this->sleep($sleep);
 
         return ['job' => null, 'failed' => false];
@@ -99,7 +98,7 @@ class Worker
                 $job->delete();
                 $job->failed();
             } finally {
-                Hook::listen('queue_failed', $job);
+                event('queue_failed', $job);
             }
         }
 

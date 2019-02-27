@@ -13,7 +13,6 @@ namespace think\queue;
 
 use DateTime;
 use think\facade\App;
-use think\facade\Env;
 
 abstract class Job
 {
@@ -143,13 +142,14 @@ abstract class Job
         if (strpos($name, '\\') === false) {
 
             if (strpos($name, '/') === false) {
-                $module = '';
+                $app = '';
             } else {
-                list($module, $name) = explode('/', $name, 2);
+                list($app, $name) = explode('/', $name, 2);
             }
 
-            $name = Env::get('app_namespace') . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
+            $name = App::getRootNamespace() . ($app ? '\\' . strtolower($app) : '') . '\\job\\' . $name;
         }
+
         return App::get($name);
     }
 

@@ -30,7 +30,7 @@ class Queue
 
     private static function buildConnector()
     {
-        $options = \think\facade\Config::pull('queue');
+        $options = \think\facade\Config::get('queue');
         $type    = !empty($options['connector']) ? $options['connector'] : 'Sync';
 
         if (!isset(self::$connector)) {
