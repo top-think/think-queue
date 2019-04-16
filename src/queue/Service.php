@@ -5,6 +5,7 @@ namespace think\queue;
 use think\helper\Arr;
 use think\helper\Str;
 use think\Queue;
+use think\queue\command\FailedTable;
 use think\queue\command\FlushFailed;
 use think\queue\command\ForgetFailed;
 use think\queue\command\Listen;
@@ -21,7 +22,7 @@ class Service extends \think\Service
         $this->app->bind('queue', Queue::class);
         $this->app->bind('queue.failer', function () {
 
-            $config = $this->app->config->get('queue.failed');
+            $config = $this->app->config->get('queue.failed', []);
 
             $type = Arr::pull($config, 'type', 'none');
 
@@ -43,6 +44,7 @@ class Service extends \think\Service
             Work::class,
             Restart::class,
             Listen::class,
+            FailedTable::class,
         ]);
     }
 }

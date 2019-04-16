@@ -31,4 +31,8 @@ return [
             'persistent' => false,
         ],
     ],
+    'failed'     => [
+        'type'  => 'none',
+        'table' => 'failed_jobs',
+    ],
 ];
