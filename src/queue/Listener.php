@@ -12,7 +12,9 @@
 namespace think\queue;
 
 use Closure;
-use think\Process;
+use Symfony\Component\Process\PhpExecutableFinder;
+use Symfony\Component\Process\Process;
+use think\App;
 
 class Listener
 {
@@ -21,16 +23,6 @@ class Listener
      * @var string
      */
     protected $commandPath;
-
-    /**
-     * @var int
-     */
-    protected $sleep = 3;
-
-    /**
-     * @var int
-     */
-    protected $maxTries = 0;
 
     /**
      * @var string
@@ -43,25 +35,41 @@ class Listener
     protected $outputHandler;
 
     /**
-     * @param  string $commandPath
+     * @param string $commandPath
      */
     public function __construct($commandPath)
     {
-        $this->commandPath   = $commandPath;
-        $this->workerCommand =
-            '"' . PHP_BINARY . '" think queue:work --queue="%s" --delay=%s --memory=%s --sleep=%s --tries=%s';
+        $this->commandPath = $commandPath;
+    }
+
+    public static function __make(App $app)
+    {
+        return new self($app->getRootPath());
     }
 
     /**
-     * @param  string $queue
-     * @param  string $delay
-     * @param  string $memory
-     * @param  int    $timeout
+     * Get the PHP binary.
+     *
+     * @return string
+     */
+    protected function phpBinary()
+    {
+        return (new PhpExecutableFinder)->find(false);
+    }
+
+    /**
+     * @param string $connector
+     * @param string $queue
+     * @param int    $delay
+     * @param int    $sleep
+     * @param int    $maxTries
+     * @param int    $memory
+     * @param int    $timeout
      * @return void
      */
-    public function listen($queue, $delay, $memory, $timeout = 60)
+    public function listen($connector, $queue, $delay = 0, $sleep = 3, $maxTries = 0, $memory = 128, $timeout = 60)
     {
-        $process = $this->makeProcess($queue, $delay, $memory, $timeout);
+        $process = $this->makeProcess($connector, $queue, $delay, $sleep, $maxTries, $memory, $timeout);
 
         while (true) {
             $this->runProcess($process, $memory);
@@ -69,8 +77,38 @@ class Listener
     }
 
     /**
-     * @param \Think\Process $process
-     * @param  int           $memory
+     * @param string $connector
+     * @param string $queue
+     * @param int    $delay
+     * @param int    $sleep
+     * @param int    $maxTries
+     * @param int    $memory
+     * @param int    $timeout
+     * @return Process
+     */
+    public function makeProcess($connector, $queue, $delay, $sleep, $maxTries, $memory, $timeout)
+    {
+        $command = array_filter([
+            $this->phpBinary(),
+            'think',
+            'queue:work',
+            $connector,
+            '--once',
+            "--queue={$queue}",
+            "--delay={$delay}",
+            "--memory={$memory}",
+            "--sleep={$sleep}",
+            "--tries={$maxTries}",
+        ], function ($value) {
+            return !is_null($value);
+        });
+
+        return new Process($command, $this->commandPath, null, null, $timeout);
+    }
+
+    /**
+     * @param Process $process
+     * @param int     $memory
      */
     public function runProcess(Process $process, $memory)
     {
@@ -84,23 +122,8 @@ class Listener
     }
 
     /**
-     * @param  string $queue
-     * @param  int    $delay
-     * @param  int    $memory
-     * @param  int    $timeout
-     * @return \think\Process
-     */
-    public function makeProcess($queue, $delay, $memory, $timeout)
-    {
-        $string  = $this->workerCommand;
-        $command = sprintf($string, $queue, $delay, $memory, $this->sleep, $this->maxTries);
-
-        return new Process($command, $this->commandPath, null, null, $timeout);
-    }
-
-    /**
-     * @param  int    $type
-     * @param  string $line
+     * @param int    $type
+     * @param string $line
      * @return void
      */
     protected function handleWorkerOutput($type, $line)
@@ -111,7 +134,7 @@ class Listener
     }
 
     /**
-     * @param  int $memoryLimit
+     * @param int $memoryLimit
      * @return bool
      */
     public function memoryExceeded($memoryLimit)
@@ -128,7 +151,7 @@ class Listener
     }
 
     /**
-     * @param  \Closure $outputHandler
+     * @param \Closure $outputHandler
      * @return void
      */
     public function setOutputHandler(Closure $outputHandler)
@@ -136,29 +159,4 @@ class Listener
         $this->outputHandler = $outputHandler;
     }
 
-    /**
-     * @return int
-     */
-    public function getSleep()
-    {
-        return $this->sleep;
-    }
-
-    /**
-     * @param  int $sleep
-     * @return void
-     */
-    public function setSleep($sleep)
-    {
-        $this->sleep = $sleep;
-    }
-
-    /**
-     * @param  int $tries
-     * @return void
-     */
-    public function setMaxTries($tries)
-    {
-        $this->maxTries = $tries;
-    }
 }

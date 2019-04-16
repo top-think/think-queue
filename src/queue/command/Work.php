@@ -10,42 +10,42 @@
 // +----------------------------------------------------------------------
 namespace think\queue\command;
 
-use Exception;
 use think\console\Command;
 use think\console\Input;
+use think\console\input\Argument;
 use think\console\input\Option;
 use think\console\Output;
-use think\exception\Handle;
-use think\exception\ThrowableError;
-use think\facade\Cache;
-use think\facade\Config;
-use think\facade\Hook;
+use think\queue\event\JobFailed;
+use think\queue\event\JobProcessed;
+use think\queue\event\JobProcessing;
 use think\queue\Job;
 use think\queue\Worker;
-use Throwable;
 
 class Work extends Command
 {
 
     /**
      * The queue worker instance.
-     * @var \think\queue\Worker
+     * @var Worker
      */
     protected $worker;
 
-    protected function initialize(Input $input, Output $output)
+    public function __construct(Worker $worker)
     {
-        $this->worker = new Worker();
+        parent::__construct();
+        $this->worker = $worker;
     }
 
     protected function configure()
     {
         $this->setName('queue:work')
+            ->addArgument('connector', Argument::OPTIONAL, 'The name of the queue connector to work', null)
             ->addOption('queue', null, Option::VALUE_OPTIONAL, 'The queue to listen on')
-            ->addOption('daemon', null, Option::VALUE_NONE, 'Run the worker in daemon mode')
+            ->addOption('once', null, Option::VALUE_NONE, 'Only process the next job on the queue')
             ->addOption('delay', null, Option::VALUE_OPTIONAL, 'Amount of time to delay failed jobs', 0)
             ->addOption('force', null, Option::VALUE_NONE, 'Force the worker to run even in maintenance mode')
             ->addOption('memory', null, Option::VALUE_OPTIONAL, 'The memory limit in megabytes', 128)
+            ->addOption('timeout', null, Option::VALUE_OPTIONAL, 'The number of seconds a child process can run', 60)
             ->addOption('sleep', null, Option::VALUE_OPTIONAL, 'Number of seconds to sleep when no job is available', 3)
             ->addOption('tries', null, Option::VALUE_OPTIONAL, 'Number of times to attempt a job before logging it failed', 0)
             ->setDescription('Process the next job on a queue');
@@ -59,152 +59,93 @@ class Work extends Command
      */
     public function execute(Input $input, Output $output)
     {
-        $queue = $input->getOption('queue');
+        $connector = $input->getArgument('connector') ?: $this->app->config->get('queue.connector', 'sync');
 
+        $queue = $input->getOption('queue') ?: $this->app->config->get("queue.{$connector}", 'default');
         $delay = $input->getOption('delay');
+        $sleep = $input->getOption('sleep');
+        $tries = $input->getOption('tries');
 
-        $memory = $input->getOption('memory');
+        $this->listenForEvents();
 
-        if ($input->getOption('daemon')) {
-            Hook::listen('worker_daemon_start', $queue);
-            $this->daemon(
-                $queue, $delay, $memory,
-                $input->getOption('sleep'), $input->getOption('tries')
-            );
+        if ($input->getOption('once')) {
+            $this->worker->runNextJob($connector, $queue, $delay, $sleep, $tries);
         } else {
-            $response = $this->worker->pop($queue, $delay, $input->getOption('sleep'), $input->getOption('tries'));
-            $this->output($response);
-        }
-    }
-
-    protected function output($response)
-    {
-        if (!is_null($response['job'])) {
-            /** @var Job $job */
-            $job = $response['job'];
-            if ($response['failed']) {
-                $this->output->writeln('<error>Failed:</error> ' . $job->getName());
-            } else {
-                $this->output->writeln('<info>Processed:</info> ' . $job->getName());
-            }
+            $memory  = $input->getOption('memory');
+            $timeout = $input->getOption('timeout');
+            $this->worker->daemon($connector, $queue, $delay, $sleep, $tries, $memory, $timeout);
         }
     }
 
     /**
-     * 启动一个守护进程执行任务.
-     *
-     * @param  string $queue
-     * @param  int    $delay
-     * @param  int    $memory
-     * @param  int    $sleep
-     * @param  int    $maxTries
-     * @return array
+     * 注册事件
      */
-    protected function daemon($queue = null, $delay = 0, $memory = 128, $sleep = 3, $maxTries = 0)
+    protected function listenForEvents()
     {
-        $lastRestart = $this->getTimestampOfLastQueueRestart();
+        $this->app->event->listen(JobProcessing::class, function ($event) {
+            $this->writeOutput($event->job, 'starting');
+        });
 
-        while (true) {
-            $this->runNextJobForDaemon(
-                $queue, $delay, $sleep, $maxTries
-            );
+        $this->app->event->listen(JobProcessed::class, function ($event) {
+            $this->writeOutput($event->job, 'success');
+        });
 
-            if ($this->memoryExceeded($memory)) {
-                Hook::listen('worker_memory_exceeded', $queue);
-                $this->stop();
-            }
+        $this->app->event->listen(JobFailed::class, function ($event) {
+            $this->writeOutput($event->job, 'failed');
 
-            if ($this->queueShouldRestart($lastRestart)) {
-                Hook::listen('worker_queue_restart', $queue);
-                $this->stop();
-            }
+            $this->logFailedJob($event);
+        });
+    }
+
+    /**
+     * Write the status output for the queue worker.
+     *
+     * @param Job $job
+     * @param     $status
+     */
+    protected function writeOutput(Job $job, $status)
+    {
+        switch ($status) {
+            case 'starting':
+                $this->writeStatus($job, 'Processing', 'comment');
+                break;
+            case 'success':
+                $this->writeStatus($job, 'Processed', 'info');
+                break;
+            case 'failed':
+                $this->writeStatus($job, 'Failed', 'error');
+                break;
         }
     }
 
     /**
-     * 以守护进程的方式执行下个任务.
+     * Format the status output for the queue worker.
      *
-     * @param  string $queue
-     * @param  int    $delay
-     * @param  int    $sleep
-     * @param  int    $maxTries
+     * @param Job    $job
+     * @param string $status
+     * @param string $type
      * @return void
      */
-    protected function runNextJobForDaemon($queue, $delay, $sleep, $maxTries)
+    protected function writeStatus(Job $job, $status, $type)
     {
-        try {
-            $response = $this->worker->pop($queue, $delay, $sleep, $maxTries);
-
-            $this->output($response);
-        } catch (Exception $e) {
-            $this->getExceptionHandler()->report($e);
-        } catch (Throwable $e) {
-            $this->getExceptionHandler()->report(new ThrowableError($e));
-        }
+        $this->output->writeln(sprintf(
+            "<{$type}>[%s][%s] %s</{$type}> %s",
+            date('Y-m-d H:i:s'),
+            $job->getJobId(),
+            str_pad("{$status}:", 11), $job->getName()
+        ));
     }
 
     /**
-     * 获取上次重启守护进程的时间
-     *
-     * @return int|null
+     * 记录失败任务
+     * @param JobFailed $event
      */
-    protected function getTimestampOfLastQueueRestart()
+    protected function logFailedJob(JobFailed $event)
     {
-        return Cache::get('think:queue:restart');
-    }
-
-    /**
-     * 检查是否要重启守护进程
-     *
-     * @param  int|null $lastRestart
-     * @return bool
-     */
-    protected function queueShouldRestart($lastRestart)
-    {
-        return $this->getTimestampOfLastQueueRestart() != $lastRestart;
-    }
-
-    /**
-     * 检查内存是否超出
-     * @param  int $memoryLimit
-     * @return bool
-     */
-    protected function memoryExceeded($memoryLimit)
-    {
-        return (memory_get_usage() / 1024 / 1024) >= $memoryLimit;
-    }
-
-    /**
-     * 获取异常处理实例
-     *
-     * @return \think\exception\Handle
-     */
-    protected function getExceptionHandler()
-    {
-        static $handle;
-
-        if (!$handle) {
-
-            if ($class = Config::get('exception_handle')) {
-                if (class_exists($class) && is_subclass_of($class, "\\think\\exception\\Handle")) {
-                    $handle = new $class;
-                }
-            }
-            if (!$handle) {
-                $handle = new Handle();
-            }
-        }
-
-        return $handle;
-    }
-
-    /**
-     * 停止执行任务的守护进程.
-     * @return void
-     */
-    public function stop()
-    {
-        die;
+        $this->app['queue.failer']->log(
+            $event->connector, $event->job->getQueue(),
+            $event->job->getRawBody(), $event->exception
+        );
     }
 
 }

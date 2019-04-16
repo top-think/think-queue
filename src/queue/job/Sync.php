@@ -11,6 +11,7 @@
 
 namespace think\queue\job;
 
+use think\App;
 use think\queue\Job;
 
 class Sync extends Job
@@ -22,18 +23,12 @@ class Sync extends Job
      */
     protected $payload;
 
-    public function __construct($payload)
+    public function __construct(App $app, $payload, $connector, $queue)
     {
-        $this->payload = $payload;
-    }
-
-    /**
-     * Fire the job.
-     * @return void
-     */
-    public function fire()
-    {
-        $this->resolveAndFire(json_decode($this->payload, true));
+        $this->app       = $app;
+        $this->connector = $connector;
+        $this->queue     = $queue;
+        $this->payload   = $payload;
     }
 
     /**
@@ -52,5 +47,20 @@ class Sync extends Job
     public function getRawBody()
     {
         return $this->payload;
+    }
+
+    /**
+     * Get the job identifier.
+     *
+     * @return string
+     */
+    public function getJobId()
+    {
+        return '';
+    }
+
+    public function getQueue()
+    {
+        return 'sync';
     }
 }

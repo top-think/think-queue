@@ -10,8 +10,9 @@
 // +----------------------------------------------------------------------
 namespace think\queue\job;
 
-use think\queue\Job;
+use think\App;
 use think\queue\connector\Database as DatabaseQueue;
+use think\queue\Job;
 
 class Database extends Job
 {
@@ -27,21 +28,13 @@ class Database extends Job
      */
     protected $job;
 
-    public function __construct(DatabaseQueue $database, $job, $queue)
+    public function __construct(App $app, DatabaseQueue $database, $job, $connector, $queue)
     {
-        $this->job           = $job;
-        $this->queue         = $queue;
-        $this->database      = $database;
-        $this->job->attempts = $this->job->attempts + 1;
-    }
-
-    /**
-     * 执行任务
-     * @return void
-     */
-    public function fire()
-    {
-        $this->resolveAndFire(json_decode($this->job->payload, true));
+        $this->app       = $app;
+        $this->job       = $job;
+        $this->queue     = $queue;
+        $this->database  = $database;
+        $this->connector = $connector;
     }
 
     /**
@@ -56,7 +49,7 @@ class Database extends Job
 
     /**
      * 重新发布任务
-     * @param  int $delay
+     * @param int $delay
      * @return void
      */
     public function release($delay = 0)
@@ -84,5 +77,15 @@ class Database extends Job
     public function getRawBody()
     {
         return $this->job->payload;
+    }
+
+    /**
+     * Get the job identifier.
+     *
+     * @return string
+     */
+    public function getJobId()
+    {
+        return $this->job->id;
     }
 }

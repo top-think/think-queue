@@ -12,74 +12,310 @@
 namespace think\queue;
 
 use Exception;
+use RuntimeException;
+use think\Cache;
+use think\Event;
+use think\exception\Handle;
 use think\Queue;
+use think\queue\event\JobExceptionOccurred;
+use think\queue\event\JobFailed;
+use think\queue\event\JobProcessed;
+use think\queue\event\JobProcessing;
+use think\queue\event\WorkerStopping;
+use Throwable;
 
 class Worker
 {
+    /** @var Event */
+    protected $event;
+    /** @var Handle */
+    protected $handle;
+    /** @var Queue */
+    protected $queue;
+
+    /** @var Cache */
+    protected $cache;
 
     /**
-     * 执行下个任务
-     * @param  string $queue
-     * @param  int    $delay
-     * @param  int    $sleep
-     * @param  int    $maxTries
-     * @return array
+     * Indicates if the worker should exit.
+     *
+     * @var bool
      */
-    public function pop($queue = null, $delay = 0, $sleep = 3, $maxTries = 0)
+    public $shouldQuit = false;
+
+    /**
+     * Indicates if the worker is paused.
+     *
+     * @var bool
+     */
+    public $paused = false;
+
+    public function __construct(Queue $queue, Event $event, Handle $handle, Cache $cache)
     {
-
-        $job = $this->getNextJob($queue);
-
-        if (!is_null($job)) {
-            event('worker_before_process', $queue);
-            return $this->process($job, $maxTries, $delay);
-        }
-
-        event('worker_before_sleep', $queue);
-        $this->sleep($sleep);
-
-        return ['job' => null, 'failed' => false];
+        $this->queue  = $queue;
+        $this->event  = $event;
+        $this->handle = $handle;
+        $this->cache  = $cache;
     }
 
     /**
-     * 获取下个任务
-     * @param  string $queue
-     * @return Job
+     * @param string $connector
+     * @param string $queue
+     * @param int    $delay
+     * @param int    $sleep
+     * @param int    $maxTries
+     * @param int    $memory
+     * @param int    $timeout
      */
-    protected function getNextJob($queue)
+    public function daemon($connector, $queue, $delay = 0, $sleep = 3, $maxTries = 0, $memory = 128, $timeout = 60)
     {
-        if (is_null($queue)) {
-            return Queue::pop();
+        if ($this->supportsAsyncSignals()) {
+            $this->listenForSignals();
         }
 
-        foreach (explode(',', $queue) as $queue) {
-            if (!is_null($job = Queue::pop($queue))) {
-                return $job;
+        $lastRestart = $this->getTimestampOfLastQueueRestart();
+
+        while (true) {
+
+            $job = $this->getNextJob(
+                $this->queue->driver($connector), $queue
+            );
+
+            if ($this->supportsAsyncSignals()) {
+                $this->registerTimeoutHandler($job, $timeout);
+            }
+
+            if ($job) {
+                $this->runJob($job, $connector, $maxTries, $delay);
+            } else {
+                $this->sleep($sleep);
+            }
+
+            if ($this->shouldQuit || $this->queueShouldRestart($lastRestart)) {
+                $this->stop();
+            } elseif ($this->memoryExceeded($memory)) {
+                $this->stop(12);
             }
         }
     }
 
     /**
-     * Process a given job from the queue.
-     * @param \think\queue\Job $job
-     * @param  int             $maxTries
-     * @param  int             $delay
-     * @return array
-     * @throws Exception
+     * Determine if the queue worker should restart.
+     *
+     * @param int|null $lastRestart
+     * @return bool
      */
-    public function process(Job $job, $maxTries = 0, $delay = 0)
+    protected function queueShouldRestart($lastRestart)
     {
-        if ($maxTries > 0 && $job->attempts() > $maxTries) {
-            return $this->logFailedJob($job);
+        return $this->getTimestampOfLastQueueRestart() != $lastRestart;
+    }
+
+    /**
+     * Determine if the memory limit has been exceeded.
+     *
+     * @param int $memoryLimit
+     * @return bool
+     */
+    public function memoryExceeded($memoryLimit)
+    {
+        return (memory_get_usage(true) / 1024 / 1024) >= $memoryLimit;
+    }
+
+    /**
+     * 获取队列重启时间
+     * @return mixed
+     */
+    protected function getTimestampOfLastQueueRestart()
+    {
+        if ($this->cache) {
+            return $this->cache->get('think:queue:restart');
+        }
+    }
+
+    /**
+     * Register the worker timeout handler.
+     *
+     * @param Job|null $job
+     * @param int      $timeout
+     * @return void
+     */
+    protected function registerTimeoutHandler($job, $timeout)
+    {
+        pcntl_signal(SIGALRM, function () {
+            $this->kill(1);
+        });
+
+        pcntl_alarm(
+            max($this->timeoutForJob($job, $timeout), 0)
+        );
+    }
+
+    /**
+     * Stop listening and bail out of the script.
+     *
+     * @param int $status
+     * @return void
+     */
+    public function stop($status = 0)
+    {
+        $this->event->trigger(new WorkerStopping($status));
+
+        exit($status);
+    }
+
+    /**
+     * Kill the process.
+     *
+     * @param int $status
+     * @return void
+     */
+    public function kill($status = 0)
+    {
+        $this->event->trigger(new WorkerStopping($status));
+
+        if (extension_loaded('posix')) {
+            posix_kill(getmypid(), SIGKILL);
         }
 
+        exit($status);
+    }
+
+    /**
+     * Get the appropriate timeout for the given job.
+     *
+     * @param Job|null $job
+     * @param int      $timeout
+     * @return int
+     */
+    protected function timeoutForJob($job, $timeout)
+    {
+        return $job && !is_null($job->timeout()) ? $job->timeout() : $timeout;
+    }
+
+    /**
+     * Determine if "async" signals are supported.
+     *
+     * @return bool
+     */
+    protected function supportsAsyncSignals()
+    {
+        return extension_loaded('pcntl');
+    }
+
+    /**
+     * Enable async signals for the process.
+     *
+     * @return void
+     */
+    protected function listenForSignals()
+    {
+        pcntl_async_signals(true);
+
+        pcntl_signal(SIGTERM, function () {
+            $this->shouldQuit = true;
+        });
+
+        pcntl_signal(SIGUSR2, function () {
+            $this->paused = true;
+        });
+
+        pcntl_signal(SIGCONT, function () {
+            $this->paused = false;
+        });
+    }
+
+    /**
+     * 执行下个任务
+     * @param string $connectorName
+     * @param string $queue
+     * @param int    $delay
+     * @param int    $sleep
+     * @param int    $maxTries
+     * @return void
+     * @throws Exception
+     */
+    public function runNextJob($connectorName, $queue, $delay = 0, $sleep = 3, $maxTries = 0)
+    {
+
+        $job = $this->getNextJob($this->queue->driver($connectorName), $queue);
+
+        if (!$job) {
+            $this->runJob($job, $connectorName, $maxTries, $delay);
+            return;
+        }
+
+        $this->sleep($sleep);
+    }
+
+    /**
+     * 执行任务
+     * @param Job    $job
+     * @param string $connectorName
+     * @param int    $maxTries
+     * @param int    $delay
+     * @return void
+     */
+    protected function runJob($job, $connectorName, $maxTries, $delay)
+    {
         try {
+            $this->process($connectorName, $job, $maxTries, $delay);
+        } catch (Exception|Throwable $e) {
+            $this->handle->report($e);
+        }
+    }
+
+    /**
+     * 获取下个任务
+     * @param Connector $connector
+     * @param string    $queue
+     * @return Job
+     */
+    protected function getNextJob($connector, $queue)
+    {
+        try {
+            foreach (explode(',', $queue) as $queue) {
+                if (!is_null($job = $connector->pop($queue))) {
+                    return $job;
+                }
+            }
+        } catch (Exception|Throwable $e) {
+            $this->handle->report($e);
+            $this->sleep(1);
+        }
+    }
+
+    /**
+     * Process a given job from the queue.
+     * @param string $connector
+     * @param Job    $job
+     * @param int    $maxTries
+     * @param int    $delay
+     * @return void
+     * @throws Exception
+     */
+    public function process($connector, Job $job, $maxTries = 0, $delay = 0)
+    {
+        try {
+            $this->event->trigger(new JobProcessing($connector, $job));
+
+            $this->markJobAsFailedIfAlreadyExceedsMaxAttempts(
+                $connector, $job, (int) $maxTries
+            );
+
             $job->fire();
 
-            return ['job' => $job, 'failed' => false];
-        } catch (Exception $e) {
-            if (!$job->isDeleted()) {
-                $job->release($delay);
+            $this->event->trigger(new JobProcessed($connector, $job));
+        } catch (Exception|Throwable $e) {
+            try {
+                if (!$job->hasFailed()) {
+                    $this->markJobAsFailedIfWillExceedMaxAttempts($connector, $job, (int) $maxTries, $e);
+                }
+
+                $this->event->trigger(new JobExceptionOccurred($connector, $job, $e));
+            } finally {
+                if (!$job->isDeleted() && !$job->isReleased() && !$job->hasFailed()) {
+                    $job->release($delay);
+                }
             }
 
             throw $e;
@@ -87,32 +323,86 @@ class Worker
     }
 
     /**
-     * Log a failed job into storage.
-     * @param  \Think\Queue\Job $job
-     * @return array
+     * @param string $connector
+     * @param Job    $job
+     * @param int    $maxTries
      */
-    protected function logFailedJob(Job $job)
+    protected function markJobAsFailedIfAlreadyExceedsMaxAttempts($connector, $job, $maxTries)
     {
-        if (!$job->isDeleted()) {
-            try {
-                $job->delete();
-                $job->failed();
-            } finally {
-                event('queue_failed', $job);
-            }
+        $maxTries = !is_null($job->maxTries()) ? $job->maxTries() : $maxTries;
+
+        $timeoutAt = $job->timeoutAt();
+
+        if ($timeoutAt && time() <= $timeoutAt) {
+            return;
         }
 
-        return ['job' => $job, 'failed' => true];
+        if (!$timeoutAt && ($maxTries === 0 || $job->attempts() <= $maxTries)) {
+            return;
+        }
+
+        $this->failJob($connector, $job, $e = new RuntimeException(
+            $job->getName() . ' has been attempted too many times or run too long. The job may have previously timed out.'
+        ));
+
+        throw $e;
+    }
+
+    /**
+     * @param string    $connector
+     * @param Job       $job
+     * @param int       $maxTries
+     * @param Exception $e
+     */
+    protected function markJobAsFailedIfWillExceedMaxAttempts($connector, $job, $maxTries, $e)
+    {
+        $maxTries = !is_null($job->maxTries()) ? $job->maxTries() : $maxTries;
+
+        if ($job->timeoutAt() && $job->timeoutAt() <= time()) {
+            $this->failJob($connector, $job, $e);
+        }
+
+        if ($maxTries > 0 && $job->attempts() >= $maxTries) {
+            $this->failJob($connector, $job, $e);
+        }
+    }
+
+    /**
+     * @param string    $connector
+     * @param Job       $job
+     * @param Exception $e
+     */
+    protected function failJob($connector, $job, $e)
+    {
+        $job->markAsFailed();
+
+        if ($job->isDeleted()) {
+            return;
+        }
+
+        try {
+            $job->delete();
+
+            $job->failed($e);
+        } finally {
+            $this->event->trigger(new JobFailed(
+                $connector, $job, $e ?: new RuntimeException('ManuallyFailed')
+            ));
+        }
     }
 
     /**
      * Sleep the script for a given number of seconds.
-     * @param  int $seconds
+     * @param int $seconds
      * @return void
      */
     public function sleep($seconds)
     {
-        sleep($seconds);
+        if ($seconds < 1) {
+            usleep($seconds * 1000000);
+        } else {
+            sleep($seconds);
+        }
     }
 
 }

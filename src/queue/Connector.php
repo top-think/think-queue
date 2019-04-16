@@ -11,36 +11,56 @@
 
 namespace think\queue;
 
+use DateTimeInterface;
 use InvalidArgumentException;
+use think\App;
 
 abstract class Connector
 {
+    /** @var App */
+    protected $app;
+
+    /**
+     * The connector name for the queue.
+     *
+     * @var string
+     */
+    protected $connectorName;
+
     protected $options = [];
+
+    abstract public function size($queue);
 
     abstract public function push($job, $data = '', $queue = null);
 
+    public function pushOn($queue, $job, $data = '')
+    {
+        return $this->push($job, $data, $queue);
+    }
+
+    abstract function pushRaw($payload, $queue = null, array $options = []);
+
     abstract public function later($delay, $job, $data = '', $queue = null);
+
+    public function laterOn($queue, $delay, $job, $data = '')
+    {
+        return $this->later($delay, $job, $data, $queue);
+    }
+
+    public function bulk($jobs, $data = '', $queue = null)
+    {
+        foreach ((array) $jobs as $job) {
+            $this->push($job, $data, $queue);
+        }
+    }
 
     abstract public function pop($queue = null);
 
-    public function marshal()
+    protected function createPayload($job, $data = '')
     {
-        throw new \RuntimeException('pop queues not support for this type');
-    }
+        $payload = $this->createPayloadArray($job, $data);
 
-    protected function createPayload($job, $data = '', $queue = null)
-    {
-        if (is_object($job)) {
-            $payload = json_encode([
-                'job'  => 'think\queue\CallQueuedHandler@call',
-                'data' => [
-                    'commandName' => get_class($job),
-                    'command'     => serialize(clone $job),
-                ],
-            ]);
-        } else {
-            $payload = json_encode($this->createPlainPayload($job, $data));
-        }
+        $payload = json_encode($payload);
 
         if (JSON_ERROR_NONE !== json_last_error()) {
             throw new InvalidArgumentException('Unable to create payload: ' . json_last_error_msg());
@@ -49,9 +69,54 @@ abstract class Connector
         return $payload;
     }
 
+    protected function createPayloadArray($job, $data = '')
+    {
+        return is_object($job)
+            ? $this->createObjectPayload($job)
+            : $this->createPlainPayload($job, $data);
+    }
+
     protected function createPlainPayload($job, $data)
     {
-        return ['job' => $job, 'data' => $data];
+        return [
+            'job'      => $job,
+            'maxTries' => null,
+            'timeout'  => null,
+            'data'     => $data,
+        ];
+    }
+
+    protected function createObjectPayload($job)
+    {
+        $payload = [
+            'job'       => 'think\queue\CallQueuedHandler@call',
+            'maxTries'  => $job->tries ?? null,
+            'timeout'   => $job->timeout ?? null,
+            'timeoutAt' => $this->getJobExpiration($job),
+            'data'      => [
+                'commandName' => $job,
+                'command'     => $job,
+            ],
+        ];
+
+        return array_merge($payload, [
+            'data' => [
+                'commandName' => get_class($job),
+                'command'     => serialize(clone $job),
+            ],
+        ]);
+    }
+
+    public function getJobExpiration($job)
+    {
+        if (!method_exists($job, 'retryUntil') && !isset($job->timeoutAt)) {
+            return;
+        }
+
+        $expiration = $job->timeoutAt ?? $job->retryUntil();
+
+        return $expiration instanceof DateTimeInterface
+            ? $expiration->getTimestamp() : $expiration;
     }
 
     protected function setMeta($payload, $key, $value)
@@ -65,5 +130,34 @@ abstract class Connector
         }
 
         return $payload;
+    }
+
+    public function setApp(App $app)
+    {
+        $this->app = $app;
+        return $this;
+    }
+
+    /**
+     * Get the connector name for the queue.
+     *
+     * @return string
+     */
+    public function getConnectorName()
+    {
+        return $this->connectorName;
+    }
+
+    /**
+     * Set the connector name for the queue.
+     *
+     * @param string $name
+     * @return $this
+     */
+    public function setConnectorName($name)
+    {
+        $this->connectorName = $name;
+
+        return $this;
     }
 }

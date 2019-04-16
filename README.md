@@ -1,4 +1,4 @@
-# think-queue for ThinkPHP5.2
+# think-queue for ThinkPHP6
 
 ## 安装
 
@@ -12,7 +12,7 @@
 
 ```
 [
-    'connector'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动,topthink:Topthink驱动
+    'default'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动,topthink:Topthink驱动
                    //或其他自定义的完整的类名
 ]
 ```
@@ -20,23 +20,6 @@
 ### 驱动配置
 > 各个驱动的具体可用配置项在`think\queue\connector`目录下各个驱动类里的`options`属性中，写在上面的`queue`配置里即可覆盖
 
-
-## 使用 Database
-> 创建如下数据表
-
-```
-CREATE TABLE `prefix_jobs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `queue` varchar(255) NOT NULL,
-  `payload` longtext NOT NULL,
-  `attempts` tinyint(3) unsigned NOT NULL,
-  `reserved` tinyint(3) unsigned NOT NULL,
-  `reserved_at` int(10) unsigned DEFAULT NULL,
-  `available_at` int(10) unsigned NOT NULL,
-  `created_at` int(10) unsigned NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-```
 
 ## 创建任务类
 > 单模块项目推荐使用 `app\job` 作为任务类的命名空间
@@ -128,7 +111,7 @@ class Job2{
 
 > php think queue:listen
 
-> php think queue:work --daemon（不加--daemon为执行单个任务）
+> php think queue:work
 
 两种，具体的可选参数可以输入命令加 --help 查看
 

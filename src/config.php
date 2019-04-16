@@ -10,5 +10,25 @@
 // +----------------------------------------------------------------------
 
 return [
-    'connector' => 'Sync'
+    'default'    => 'sync',
+    'connectors' => [
+        'sync'     => [
+            'driver' => 'sync',
+        ],
+        'database' => [
+            'driver' => 'database',
+            'queue'  => 'default',
+            'table'  => 'jobs',
+        ],
+        'redis'    => [
+            'driver'     => 'redis',
+            'queue'      => 'default',
+            'host'       => '127.0.0.1',
+            'port'       => 6379,
+            'password'   => '',
+            'select'     => 0,
+            'timeout'    => 0,
+            'persistent' => false,
+        ],
+    ],
 ];

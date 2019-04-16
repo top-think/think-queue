@@ -13,6 +13,7 @@ namespace think\queue\command;
 
 use think\console\Command;
 use think\console\Input;
+use think\console\input\Argument;
 use think\console\input\Option;
 use think\console\Output;
 use think\queue\Listener;
@@ -22,9 +23,19 @@ class Listen extends Command
     /** @var  Listener */
     protected $listener;
 
-    public function configure()
+    public function __construct(Listener $listener)
+    {
+        parent::__construct();
+        $this->listener = $listener;
+        $this->listener->setOutputHandler(function ($type, $line) {
+            $this->output->write($line);
+        });
+    }
+
+    protected function configure()
     {
         $this->setName('queue:listen')
+            ->addArgument('connector', Argument::OPTIONAL, 'The name of the queue connector to work', null)
             ->addOption('queue', null, Option::VALUE_OPTIONAL, 'The queue to listen on', null)
             ->addOption('delay', null, Option::VALUE_OPTIONAL, 'Amount of time to delay failed jobs', 0)
             ->addOption('memory', null, Option::VALUE_OPTIONAL, 'The memory limit in megabytes', 128)
@@ -34,27 +45,17 @@ class Listen extends Command
             ->setDescription('Listen to a given queue');
     }
 
-    public function initialize(Input $input, Output $output)
-    {
-        $this->listener = new Listener(getcwd());
-        $this->listener->setSleep($input->getOption('sleep'));
-        $this->listener->setMaxTries($input->getOption('tries'));
-
-        $this->listener->setOutputHandler(function ($type, $line) use ($output) {
-            $output->write($line);
-        });
-    }
-
     public function execute(Input $input, Output $output)
     {
-        $delay = $input->getOption('delay');
+        $connector = $input->getArgument('connector') ?: $this->app->config->get('queue.connector', 'sync');
 
-        $memory = $input->getOption('memory');
-
+        $queue   = $input->getOption('queue') ?: $this->app->config->get("queue.{$connector}", 'default');
+        $delay   = $input->getOption('delay');
+        $memory  = $input->getOption('memory');
         $timeout = $input->getOption('timeout');
+        $sleep   = $input->getOption('sleep');
+        $tries   = $input->getOption('tries');
 
-        $queue = $input->getOption('queue') ?: 'default';
-
-        $this->listener->listen($queue, $delay, $memory, $timeout);
+        $this->listener->listen($connector, $queue, $delay, $sleep, $tries, $memory, $timeout);
     }
 }

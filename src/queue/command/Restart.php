@@ -11,21 +11,20 @@
 
 namespace think\queue\command;
 
+use think\Cache;
 use think\console\Command;
-use think\console\Input;
-use think\console\Output;
-use think\facade\Cache;
 
 class Restart extends Command
 {
-    public function configure()
+    protected function configure()
     {
-        $this->setName('queue:restart')->setDescription('Restart queue worker daemons after their current job');
+        $this->setName('queue:restart')
+            ->setDescription('Restart queue worker daemons after their current job');
     }
 
-    public function execute(Input $input, Output $output)
+    public function handle(Cache $cache)
     {
-        Cache::set('think:queue:restart', time());
-        $output->writeln("<info>Broadcasting queue restart signal.</info>");
+        $cache->set('think:queue:restart', time());
+        $this->output->info("Broadcasting queue restart signal.");
     }
 }
