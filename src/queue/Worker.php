@@ -259,7 +259,7 @@ class Worker
     {
         try {
             $this->process($connectorName, $job, $maxTries, $delay);
-        } catch (Exception|Throwable $e) {
+        } catch (Exception | Throwable $e) {
             $this->handle->report($e);
         }
     }
@@ -278,7 +278,7 @@ class Worker
                     return $job;
                 }
             }
-        } catch (Exception|Throwable $e) {
+        } catch (Exception | Throwable $e) {
             $this->handle->report($e);
             $this->sleep(1);
         }
@@ -305,7 +305,7 @@ class Worker
             $job->fire();
 
             $this->event->trigger(new JobProcessed($connector, $job));
-        } catch (Exception|Throwable $e) {
+        } catch (Exception | Throwable $e) {
             try {
                 if (!$job->hasFailed()) {
                     $this->markJobAsFailedIfWillExceedMaxAttempts($connector, $job, (int) $maxTries, $e);
