@@ -37,7 +37,7 @@ class Sync extends Connector
             $queueJob->fire();
 
             $this->triggerEvent(new JobProcessed($this->connectorName, $job));
-        } catch (Exception|Throwable $e) {
+        } catch (Exception | Throwable $e) {
 
             $this->triggerEvent(new JobFailed($this->connectorName, $job, $e));
 
@@ -62,7 +62,7 @@ class Sync extends Connector
         return new SyncJob($this->app, $payload, $this->connectorName, $queue);
     }
 
-    function pushRaw($payload, $queue = null, array $options = [])
+    public function pushRaw($payload, $queue = null, array $options = [])
     {
 
     }

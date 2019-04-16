@@ -129,7 +129,7 @@ class Database extends Connector
                 return new DatabaseJob($this->app, $this, $job, $this->connectorName, $queue);
             }
 
-            return null;
+            return;
         });
     }
 

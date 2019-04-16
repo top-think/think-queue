@@ -38,7 +38,7 @@ abstract class Connector
         return $this->push($job, $data, $queue);
     }
 
-    abstract function pushRaw($payload, $queue = null, array $options = []);
+    abstract public function pushRaw($payload, $queue = null, array $options = []);
 
     abstract public function later($delay, $job, $data = '', $queue = null);
 
