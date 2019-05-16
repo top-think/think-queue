@@ -293,7 +293,7 @@ class Worker
      * @return void
      * @throws Exception
      */
-    public function process($connector, Job $job, $maxTries = 0, $delay = 0)
+    public function process($connector, Job $job = null, $maxTries = 0, $delay = 0)
     {
         try {
             $this->event->trigger(new JobProcessing($connector, $job));
@@ -337,7 +337,7 @@ class Worker
             return;
         }
 
-        if (!$timeoutAt && ($maxTries === 0 || $job->attempts() <= $maxTries)) {
+        if (!$timeoutAt && (0 === $maxTries || $job->attempts() <= $maxTries)) {
             return;
         }
 
