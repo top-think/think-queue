@@ -185,7 +185,7 @@ class Redis extends Connector
         $reserved = false;
 
         if ($job) {
-            $reserved = json_decode($job);
+            $reserved = json_decode($job, true);
             $reserved['attempts']++;
             $reserved = json_encode($reserved);
             $this->redis->zAdd($queue . ':reserved', $this->availableAt($this->retryAfter), $reserved);
