@@ -50,7 +50,7 @@ class Worker
      */
     public $paused = false;
 
-    public function __construct(Queue $queue, Event $event, Handle $handle, Cache $cache)
+    public function __construct(Queue $queue, Event $event, Handle $handle, Cache $cache = null)
     {
         $this->queue  = $queue;
         $this->event  = $event;
@@ -91,11 +91,16 @@ class Worker
                 $this->sleep($sleep);
             }
 
-            if ($this->shouldQuit || $this->queueShouldRestart($lastRestart)) {
-                $this->stop();
-            } elseif ($this->memoryExceeded($memory)) {
-                $this->stop(12);
-            }
+            $this->stopIfNecessary($job, $lastRestart, $memory);
+        }
+    }
+
+    protected function stopIfNecessary($job, $lastRestart, $memory)
+    {
+        if ($this->shouldQuit || $this->queueShouldRestart($lastRestart)) {
+            $this->stop();
+        } elseif ($this->memoryExceeded($memory)) {
+            $this->stop(12);
         }
     }
 
@@ -293,7 +298,7 @@ class Worker
      * @return void
      * @throws Exception
      */
-    public function process($connector, Job $job, $maxTries = 0, $delay = 0)
+    public function process($connector, $job, $maxTries = 0, $delay = 0)
     {
         try {
             $this->event->trigger(new JobProcessing($connector, $job));
