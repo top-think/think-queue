@@ -239,7 +239,7 @@ class Worker
 
         $job = $this->getNextJob($this->queue->driver($connectorName), $queue);
 
-        if (!$job) {
+        if ($job) {
             $this->runJob($job, $connectorName, $maxTries, $delay);
             return;
         }
@@ -293,7 +293,7 @@ class Worker
      * @return void
      * @throws Exception
      */
-    public function process($connector, Job $job = null, $maxTries = 0, $delay = 0)
+    public function process($connector, Job $job, $maxTries = 0, $delay = 0)
     {
         try {
             $this->event->trigger(new JobProcessing($connector, $job));
