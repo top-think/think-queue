@@ -2,6 +2,7 @@
 
 namespace think\test\queue;
 
+use Carbon\Carbon;
 use Mockery as m;
 use Mockery\MockInterface;
 use RuntimeException;
@@ -14,6 +15,7 @@ use think\queue\event\JobExceptionOccurred;
 use think\queue\event\JobFailed;
 use think\queue\event\JobProcessed;
 use think\queue\event\JobProcessing;
+use think\queue\exception\MaxAttemptsExceededException;
 
 class WorkerTest extends TestCase
 {
@@ -163,6 +165,100 @@ class WorkerTest extends TestCase
         $this->event->shouldNotHaveReceived('trigger', [m::type(JobProcessed::class)]);
     }
 
+    public function testJobIsNotReleasedIfItHasExpired()
+    {
+        $e = new RuntimeException;
+
+        $job = new WorkerFakeJob(function ($job) use ($e) {
+            // In normal use this would be incremented by being popped off the queue
+            $job->attempts++;
+
+            throw $e;
+        });
+
+        $job->timeoutAt = Carbon::now()->addSeconds(1)->getTimestamp();
+
+        $job->attempts = 0;
+
+        Carbon::setTestNow(
+            Carbon::now()->addSeconds(1)
+        );
+
+        $worker = $this->getWorker(['default' => [$job]]);
+        $worker->runNextJob('sync', 'default');
+
+        $this->assertNull($job->releaseAfter);
+        $this->assertTrue($job->deleted);
+        $this->assertEquals($e, $job->failedWith);
+        $this->handle->shouldHaveReceived('report')->with($e);
+        $this->event->shouldHaveReceived('trigger')->with(m::type(JobExceptionOccurred::class))->once();
+        $this->event->shouldHaveReceived('trigger')->with(m::type(JobFailed::class))->once();
+        $this->event->shouldNotHaveReceived('trigger', [m::type(JobProcessed::class)]);
+    }
+
+    public function testJobIsFailedIfItHasAlreadyExceededMaxAttempts()
+    {
+        $job = new WorkerFakeJob(function ($job) {
+            $job->attempts++;
+        });
+
+        $job->attempts = 2;
+
+        $worker = $this->getWorker(['default' => [$job]]);
+        $worker->runNextJob('sync', 'default', 0, 3, 1);
+
+        $this->assertNull($job->releaseAfter);
+        $this->assertTrue($job->deleted);
+        $this->assertInstanceOf(MaxAttemptsExceededException::class, $job->failedWith);
+        $this->handle->shouldHaveReceived('report')->with(m::type(MaxAttemptsExceededException::class));
+        $this->event->shouldHaveReceived('trigger')->with(m::type(JobExceptionOccurred::class))->once();
+        $this->event->shouldHaveReceived('trigger')->with(m::type(JobFailed::class))->once();
+        $this->event->shouldNotHaveReceived('trigger', [m::type(JobProcessed::class)]);
+    }
+
+    public function testJobIsFailedIfItHasAlreadyExpired()
+    {
+        $job = new WorkerFakeJob(function ($job) {
+            $job->attempts++;
+        });
+
+        $job->timeoutAt = Carbon::now()->addSeconds(2)->getTimestamp();
+
+        $job->attempts = 1;
+
+        Carbon::setTestNow(
+            Carbon::now()->addSeconds(3)
+        );
+
+        $worker = $this->getWorker(['default' => [$job]]);
+        $worker->runNextJob('sync', 'default');
+
+        $this->assertNull($job->releaseAfter);
+        $this->assertTrue($job->deleted);
+        $this->assertInstanceOf(MaxAttemptsExceededException::class, $job->failedWith);
+        $this->handle->shouldHaveReceived('report')->with(m::type(MaxAttemptsExceededException::class));
+        $this->event->shouldHaveReceived('trigger')->with(m::type(JobExceptionOccurred::class))->once();
+        $this->event->shouldHaveReceived('trigger')->with(m::type(JobFailed::class))->once();
+        $this->event->shouldNotHaveReceived('trigger', [m::type(JobProcessed::class)]);
+    }
+
+    public function testJobBasedMaxRetries()
+    {
+        $job = new WorkerFakeJob(function ($job) {
+            $job->attempts++;
+        });
+
+        $job->attempts = 2;
+
+        $job->maxTries = 10;
+
+        $worker = $this->getWorker(['default' => [$job]]);
+        $worker->runNextJob('sync', 'default', 0, 3, 1);
+
+        $this->assertFalse($job->deleted);
+        $this->assertNull($job->failedWith);
+    }
+
     protected function getWorker($jobs)
     {
         $sync = m::mock(Sync::class);
@@ -310,6 +406,11 @@ class WorkerFakeJob
     public function timeout()
     {
         return time() + 60;
+    }
+
+    public function getName()
+    {
+        return 'WorkerFakeJob';
     }
 }
 

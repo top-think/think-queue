@@ -25,7 +25,7 @@ abstract class Connector
      *
      * @var string
      */
-    protected $connectorName;
+    protected $connection;
 
     protected $options = [];
 
@@ -143,9 +143,9 @@ abstract class Connector
      *
      * @return string
      */
-    public function getConnectorName()
+    public function getConnection()
     {
-        return $this->connectorName;
+        return $this->connection;
     }
 
     /**
@@ -154,9 +154,9 @@ abstract class Connector
      * @param string $name
      * @return $this
      */
-    public function setConnectorName($name)
+    public function setConnection($name)
     {
-        $this->connectorName = $name;
+        $this->connection = $name;
 
         return $this;
     }

@@ -41,8 +41,8 @@ class Retry extends Command
      */
     protected function retryJob($job)
     {
-        $this->app['queue']->driver($job->connector)->pushRaw(
-            $this->resetAttempts($job->payload), $job->queue
+        $this->app['queue']->connection($job['connection'])->pushRaw(
+            $this->resetAttempts($job['payload']), $job['queue']
         );
     }
 

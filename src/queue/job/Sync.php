@@ -23,12 +23,12 @@ class Sync extends Job
      */
     protected $payload;
 
-    public function __construct(App $app, $payload, $connector, $queue)
+    public function __construct(App $app, $payload, $connection, $queue)
     {
-        $this->app       = $app;
-        $this->connector = $connector;
-        $this->queue     = $queue;
-        $this->payload   = $payload;
+        $this->app        = $app;
+        $this->connection = $connection;
+        $this->queue      = $queue;
+        $this->payload    = $payload;
     }
 
     /**

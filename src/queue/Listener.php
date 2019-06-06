@@ -58,7 +58,7 @@ class Listener
     }
 
     /**
-     * @param string $connector
+     * @param string $connection
      * @param string $queue
      * @param int    $delay
      * @param int    $sleep
@@ -67,9 +67,9 @@ class Listener
      * @param int    $timeout
      * @return void
      */
-    public function listen($connector, $queue, $delay = 0, $sleep = 3, $maxTries = 0, $memory = 128, $timeout = 60)
+    public function listen($connection, $queue, $delay = 0, $sleep = 3, $maxTries = 0, $memory = 128, $timeout = 60)
     {
-        $process = $this->makeProcess($connector, $queue, $delay, $sleep, $maxTries, $memory, $timeout);
+        $process = $this->makeProcess($connection, $queue, $delay, $sleep, $maxTries, $memory, $timeout);
 
         while (true) {
             $this->runProcess($process, $memory);
@@ -77,7 +77,7 @@ class Listener
     }
 
     /**
-     * @param string $connector
+     * @param string $connection
      * @param string $queue
      * @param int    $delay
      * @param int    $sleep
@@ -86,13 +86,13 @@ class Listener
      * @param int    $timeout
      * @return Process
      */
-    public function makeProcess($connector, $queue, $delay, $sleep, $maxTries, $memory, $timeout)
+    public function makeProcess($connection, $queue, $delay, $sleep, $maxTries, $memory, $timeout)
     {
         $command = array_filter([
             $this->phpBinary(),
             'think',
             'queue:work',
-            $connector,
+            $connection,
             '--once',
             "--queue={$queue}",
             "--delay={$delay}",

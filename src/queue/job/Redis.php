@@ -44,14 +44,14 @@ class Redis extends Job
      */
     protected $reserved;
 
-    public function __construct(App $app, RedisQueue $redis, $job, $reserved, $connector, $queue)
+    public function __construct(App $app, RedisQueue $redis, $job, $reserved, $connection, $queue)
     {
-        $this->app       = $app;
-        $this->job       = $job;
-        $this->queue     = $queue;
-        $this->connector = $connector;
-        $this->redis     = $redis;
-        $this->reserved  = $reserved;
+        $this->app        = $app;
+        $this->job        = $job;
+        $this->queue      = $queue;
+        $this->connection = $connection;
+        $this->redis      = $redis;
+        $this->reserved   = $reserved;
 
         $this->decoded = $this->payload();
     }

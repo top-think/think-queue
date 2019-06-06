@@ -13,7 +13,7 @@ class CreateJobsTable extends Migrator
             ->addColumn(Column::tinyInteger('attempts')->setUnsigned())
             ->addColumn(Column::unsignedInteger('reserved_at')->setNullable())
             ->addColumn(Column::unsignedInteger('available_at'))
-            ->addColumn(Column::unsignedInteger('create_at'))
+            ->addColumn(Column::unsignedInteger('created_at'))
             ->addIndex('queue')
             ->create();
     }

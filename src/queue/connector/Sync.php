@@ -32,14 +32,14 @@ class Sync extends Connector
         $queueJob = $this->resolveJob($this->createPayload($job, $data), $queue);
 
         try {
-            $this->triggerEvent(new JobProcessing($this->connectorName, $job));
+            $this->triggerEvent(new JobProcessing($this->connection, $job));
 
             $queueJob->fire();
 
-            $this->triggerEvent(new JobProcessed($this->connectorName, $job));
+            $this->triggerEvent(new JobProcessed($this->connection, $job));
         } catch (Exception | Throwable $e) {
 
-            $this->triggerEvent(new JobFailed($this->connectorName, $job, $e));
+            $this->triggerEvent(new JobFailed($this->connection, $job, $e));
 
             throw $e;
         }
@@ -59,7 +59,7 @@ class Sync extends Connector
 
     protected function resolveJob($payload, $queue)
     {
-        return new SyncJob($this->app, $payload, $this->connectorName, $queue);
+        return new SyncJob($this->app, $payload, $this->connection, $queue);
     }
 
     public function pushRaw($payload, $queue = null, array $options = [])

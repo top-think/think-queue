@@ -33,20 +33,20 @@ class Database extends FailedJob
     /**
      * Log a failed job into storage.
      *
-     * @param string     $connector
+     * @param string     $connection
      * @param string     $queue
      * @param string     $payload
      * @param \Exception $exception
      * @return int|null
      */
-    public function log($connector, $queue, $payload, $exception)
+    public function log($connection, $queue, $payload, $exception)
     {
         $failed_at = Carbon::now();
 
         $exception = (string) $exception;
 
         return $this->getTable()->insertGetId(compact(
-            'connector', 'queue', 'payload', 'exception', 'failed_at'
+            'connection', 'queue', 'payload', 'exception', 'failed_at'
         ));
     }
 
@@ -57,7 +57,7 @@ class Database extends FailedJob
      */
     public function all()
     {
-        return $this->getTable()->order('id', 'desc')->select()->all();
+        return collect($this->getTable()->order('id', 'desc')->select())->all();
     }
 
     /**

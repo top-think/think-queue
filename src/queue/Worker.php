@@ -11,6 +11,7 @@
 
 namespace think\queue;
 
+use Carbon\Carbon;
 use Exception;
 use RuntimeException;
 use think\Cache;
@@ -22,6 +23,7 @@ use think\queue\event\JobFailed;
 use think\queue\event\JobProcessed;
 use think\queue\event\JobProcessing;
 use think\queue\event\WorkerStopping;
+use think\queue\exception\MaxAttemptsExceededException;
 use Throwable;
 
 class Worker
@@ -59,7 +61,7 @@ class Worker
     }
 
     /**
-     * @param string $connector
+     * @param string $connection
      * @param string $queue
      * @param int    $delay
      * @param int    $sleep
@@ -67,7 +69,7 @@ class Worker
      * @param int    $memory
      * @param int    $timeout
      */
-    public function daemon($connector, $queue, $delay = 0, $sleep = 3, $maxTries = 0, $memory = 128, $timeout = 60)
+    public function daemon($connection, $queue, $delay = 0, $sleep = 3, $maxTries = 0, $memory = 128, $timeout = 60)
     {
         if ($this->supportsAsyncSignals()) {
             $this->listenForSignals();
@@ -78,7 +80,7 @@ class Worker
         while (true) {
 
             $job = $this->getNextJob(
-                $this->queue->driver($connector), $queue
+                $this->queue->connection($connection), $queue
             );
 
             if ($this->supportsAsyncSignals()) {
@@ -86,7 +88,7 @@ class Worker
             }
 
             if ($job) {
-                $this->runJob($job, $connector, $maxTries, $delay);
+                $this->runJob($job, $connection, $maxTries, $delay);
             } else {
                 $this->sleep($sleep);
             }
@@ -231,7 +233,7 @@ class Worker
 
     /**
      * 执行下个任务
-     * @param string $connectorName
+     * @param string $connection
      * @param string $queue
      * @param int    $delay
      * @param int    $sleep
@@ -239,31 +241,30 @@ class Worker
      * @return void
      * @throws Exception
      */
-    public function runNextJob($connectorName, $queue, $delay = 0, $sleep = 3, $maxTries = 0)
+    public function runNextJob($connection, $queue, $delay = 0, $sleep = 3, $maxTries = 0)
     {
 
-        $job = $this->getNextJob($this->queue->driver($connectorName), $queue);
+        $job = $this->getNextJob($this->queue->connection($connection), $queue);
 
         if ($job) {
-            $this->runJob($job, $connectorName, $maxTries, $delay);
-            return;
+            $this->runJob($job, $connection, $maxTries, $delay);
+        } else {
+            $this->sleep($sleep);
         }
-
-        $this->sleep($sleep);
     }
 
     /**
      * 执行任务
      * @param Job    $job
-     * @param string $connectorName
+     * @param string $connection
      * @param int    $maxTries
      * @param int    $delay
      * @return void
      */
-    protected function runJob($job, $connectorName, $maxTries, $delay)
+    protected function runJob($job, $connection, $maxTries, $delay)
     {
         try {
-            $this->process($connectorName, $job, $maxTries, $delay);
+            $this->process($connection, $job, $maxTries, $delay);
         } catch (Exception | Throwable $e) {
             $this->handle->report($e);
         }
@@ -291,32 +292,32 @@ class Worker
 
     /**
      * Process a given job from the queue.
-     * @param string $connector
+     * @param string $connection
      * @param Job    $job
      * @param int    $maxTries
      * @param int    $delay
      * @return void
      * @throws Exception
      */
-    public function process($connector, $job, $maxTries = 0, $delay = 0)
+    public function process($connection, $job, $maxTries = 0, $delay = 0)
     {
         try {
-            $this->event->trigger(new JobProcessing($connector, $job));
+            $this->event->trigger(new JobProcessing($connection, $job));
 
             $this->markJobAsFailedIfAlreadyExceedsMaxAttempts(
-                $connector, $job, (int) $maxTries
+                $connection, $job, (int) $maxTries
             );
 
             $job->fire();
 
-            $this->event->trigger(new JobProcessed($connector, $job));
+            $this->event->trigger(new JobProcessed($connection, $job));
         } catch (Exception | Throwable $e) {
             try {
                 if (!$job->hasFailed()) {
-                    $this->markJobAsFailedIfWillExceedMaxAttempts($connector, $job, (int) $maxTries, $e);
+                    $this->markJobAsFailedIfWillExceedMaxAttempts($connection, $job, (int) $maxTries, $e);
                 }
 
-                $this->event->trigger(new JobExceptionOccurred($connector, $job, $e));
+                $this->event->trigger(new JobExceptionOccurred($connection, $job, $e));
             } finally {
                 if (!$job->isDeleted() && !$job->isReleased() && !$job->hasFailed()) {
                     $job->release($delay);
@@ -328,17 +329,17 @@ class Worker
     }
 
     /**
-     * @param string $connector
+     * @param string $connection
      * @param Job    $job
      * @param int    $maxTries
      */
-    protected function markJobAsFailedIfAlreadyExceedsMaxAttempts($connector, $job, $maxTries)
+    protected function markJobAsFailedIfAlreadyExceedsMaxAttempts($connection, $job, $maxTries)
     {
         $maxTries = !is_null($job->maxTries()) ? $job->maxTries() : $maxTries;
 
         $timeoutAt = $job->timeoutAt();
 
-        if ($timeoutAt && time() <= $timeoutAt) {
+        if ($timeoutAt && Carbon::now()->getTimestamp() <= $timeoutAt) {
             return;
         }
 
@@ -346,7 +347,7 @@ class Worker
             return;
         }
 
-        $this->failJob($connector, $job, $e = new RuntimeException(
+        $this->failJob($connection, $job, $e = new MaxAttemptsExceededException(
             $job->getName() . ' has been attempted too many times or run too long. The job may have previously timed out.'
         ));
 
@@ -354,30 +355,30 @@ class Worker
     }
 
     /**
-     * @param string    $connector
+     * @param string    $connection
      * @param Job       $job
      * @param int       $maxTries
      * @param Exception $e
      */
-    protected function markJobAsFailedIfWillExceedMaxAttempts($connector, $job, $maxTries, $e)
+    protected function markJobAsFailedIfWillExceedMaxAttempts($connection, $job, $maxTries, $e)
     {
         $maxTries = !is_null($job->maxTries()) ? $job->maxTries() : $maxTries;
 
-        if ($job->timeoutAt() && $job->timeoutAt() <= time()) {
-            $this->failJob($connector, $job, $e);
+        if ($job->timeoutAt() && $job->timeoutAt() <= Carbon::now()->getTimestamp()) {
+            $this->failJob($connection, $job, $e);
         }
 
         if ($maxTries > 0 && $job->attempts() >= $maxTries) {
-            $this->failJob($connector, $job, $e);
+            $this->failJob($connection, $job, $e);
         }
     }
 
     /**
-     * @param string    $connector
+     * @param string    $connection
      * @param Job       $job
      * @param Exception $e
      */
-    protected function failJob($connector, $job, $e)
+    protected function failJob($connection, $job, $e)
     {
         $job->markAsFailed();
 
@@ -391,7 +392,7 @@ class Worker
             $job->failed($e);
         } finally {
             $this->event->trigger(new JobFailed(
-                $connector, $job, $e ?: new RuntimeException('ManuallyFailed')
+                $connection, $job, $e ?: new RuntimeException('ManuallyFailed')
             ));
         }
     }

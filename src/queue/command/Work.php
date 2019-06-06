@@ -39,7 +39,7 @@ class Work extends Command
     protected function configure()
     {
         $this->setName('queue:work')
-            ->addArgument('connector', Argument::OPTIONAL, 'The name of the queue connector to work', null)
+            ->addArgument('connection', Argument::OPTIONAL, 'The name of the queue connection to work', null)
             ->addOption('queue', null, Option::VALUE_OPTIONAL, 'The queue to listen on')
             ->addOption('once', null, Option::VALUE_NONE, 'Only process the next job on the queue')
             ->addOption('delay', null, Option::VALUE_OPTIONAL, 'Amount of time to delay failed jobs', 0)
@@ -59,9 +59,9 @@ class Work extends Command
      */
     public function execute(Input $input, Output $output)
     {
-        $connector = $input->getArgument('connector') ?: $this->app->config->get('queue.connector', 'sync');
+        $connection = $input->getArgument('connection') ?: $this->app->config->get('queue.default');
 
-        $queue = $input->getOption('queue') ?: $this->app->config->get("queue.{$connector}", 'default');
+        $queue = $input->getOption('queue') ?: $this->app->config->get("queue.connections.{$connection}.queue", 'default');
         $delay = $input->getOption('delay');
         $sleep = $input->getOption('sleep');
         $tries = $input->getOption('tries');
@@ -69,11 +69,11 @@ class Work extends Command
         $this->listenForEvents();
 
         if ($input->getOption('once')) {
-            $this->worker->runNextJob($connector, $queue, $delay, $sleep, $tries);
+            $this->worker->runNextJob($connection, $queue, $delay, $sleep, $tries);
         } else {
             $memory  = $input->getOption('memory');
             $timeout = $input->getOption('timeout');
-            $this->worker->daemon($connector, $queue, $delay, $sleep, $tries, $memory, $timeout);
+            $this->worker->daemon($connection, $queue, $delay, $sleep, $tries, $memory, $timeout);
         }
     }
 
@@ -82,15 +82,15 @@ class Work extends Command
      */
     protected function listenForEvents()
     {
-        $this->app->event->listen(JobProcessing::class, function ($event) {
+        $this->app->event->listen(JobProcessing::class, function (JobProcessing $event) {
             $this->writeOutput($event->job, 'starting');
         });
 
-        $this->app->event->listen(JobProcessed::class, function ($event) {
+        $this->app->event->listen(JobProcessed::class, function (JobProcessed $event) {
             $this->writeOutput($event->job, 'success');
         });
 
-        $this->app->event->listen(JobFailed::class, function ($event) {
+        $this->app->event->listen(JobFailed::class, function (JobFailed $event) {
             $this->writeOutput($event->job, 'failed');
 
             $this->logFailedJob($event);
@@ -143,7 +143,7 @@ class Work extends Command
     protected function logFailedJob(JobFailed $event)
     {
         $this->app['queue.failer']->log(
-            $event->connector, $event->job->getQueue(),
+            $event->connection, $event->job->getQueue(),
             $event->job->getRawBody(), $event->exception
         );
     }

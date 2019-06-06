@@ -120,7 +120,7 @@ class Redis extends Connector
         [$job, $reserved] = $nextJob;
 
         if ($reserved) {
-            return new RedisJob($this->app, $this, $job, $reserved, $this->connectorName, $queue);
+            return new RedisJob($this->app, $this, $job, $reserved, $this->connection, $queue);
         }
     }
 

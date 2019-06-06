@@ -10,8 +10,8 @@
 // +----------------------------------------------------------------------
 
 return [
-    'default'    => 'sync',
-    'connectors' => [
+    'default'     => 'sync',
+    'connections' => [
         'sync'     => [
             'driver' => 'sync',
         ],
@@ -31,7 +31,7 @@ return [
             'persistent' => false,
         ],
     ],
-    'failed'     => [
+    'failed'      => [
         'type'  => 'none',
         'table' => 'failed_jobs',
     ],

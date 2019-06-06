@@ -28,13 +28,13 @@ class Database extends Job
      */
     protected $job;
 
-    public function __construct(App $app, DatabaseQueue $database, $job, $connector, $queue)
+    public function __construct(App $app, DatabaseQueue $database, $job, $connection, $queue)
     {
-        $this->app       = $app;
-        $this->job       = $job;
-        $this->queue     = $queue;
-        $this->database  = $database;
-        $this->connector = $connector;
+        $this->app        = $app;
+        $this->job        = $job;
+        $this->queue      = $queue;
+        $this->database   = $database;
+        $this->connection = $connection;
     }
 
     /**

@@ -12,14 +12,18 @@
 namespace think;
 
 use InvalidArgumentException;
+use think\cache\driver\Redis;
 use think\helper\Str;
 use think\queue\Connector;
+use think\queue\connector\Database;
 
 /**
  * Class Queue
  * @package think\queue
  *
  * @method Connector driver($driver = null)
+ * @mixin Database
+ * @mixin Redis
  */
 class Queue extends Factory
 {
@@ -33,7 +37,7 @@ class Queue extends Factory
      */
     protected function getConfig($name)
     {
-        return $this->app->config->get("queue.connectors.{$name}", ['driver' => 'sync']);
+        return $this->app->config->get("queue.connections.{$name}", ['driver' => 'sync']);
     }
 
     protected function createDriver($name)
@@ -47,10 +51,19 @@ class Queue extends Factory
             $driver = $this->app->invokeClass($class, [$this->getConfig($driver)]);
 
             return $driver->setApp($this->app)
-                ->setConnectorName($name);
+                ->setConnection($name);
         }
 
         throw new InvalidArgumentException("Driver [$driver] not supported.");
+    }
+
+    /**
+     * @param null|string $name
+     * @return Connector
+     */
+    public function connection($name = null)
+    {
+        return $this->driver($name);
     }
 
     /**
@@ -59,6 +72,6 @@ class Queue extends Factory
      */
     public function getDefaultDriver()
     {
-        return $this->app->config->get('queue.default', 'sync');
+        return $this->app->config->get('queue.default');
     }
 }

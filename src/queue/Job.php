@@ -37,7 +37,7 @@ abstract class Job
     /**
      * The name of the connection the job belongs to.
      */
-    protected $connector;
+    protected $connection;
 
     /**
      * Indicates if the job has been deleted.
@@ -266,9 +266,9 @@ abstract class Job
      *
      * @return string
      */
-    public function getConnector()
+    public function getConnection()
     {
-        return $this->connector;
+        return $this->connection;
     }
 
     /**

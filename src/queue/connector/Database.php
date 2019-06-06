@@ -82,6 +82,26 @@ class Database extends Connector
         return $this->pushToDatabase($queue, $this->createPayload($job, $data), $delay);
     }
 
+    public function bulk($jobs, $data = '', $queue = null)
+    {
+        $queue = $this->getQueue($queue);
+
+        $availableAt = $this->availableAt();
+
+        return $this->db->name($this->table)->insertAll(collect((array) $jobs)->map(
+            function ($job) use ($queue, $data, $availableAt) {
+                return [
+                    'queue'        => $queue,
+                    'attempts'     => 0,
+                    'reserved_at'  => null,
+                    'available_at' => $availableAt,
+                    'created_at'   => $this->currentTime(),
+                    'payload'      => $this->createPayload($job, $data),
+                ];
+            }
+        )->all());
+    }
+
     /**
      * 重新发布任务
      *
@@ -126,10 +146,8 @@ class Database extends Connector
 
                 $job = $this->markJobAsReserved($job);
 
-                return new DatabaseJob($this->app, $this, $job, $this->connectorName, $queue);
+                return new DatabaseJob($this->app, $this, $job, $this->connection, $queue);
             }
-
-            return;
         });
     }
 

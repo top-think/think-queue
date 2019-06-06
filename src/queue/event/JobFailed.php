@@ -7,7 +7,7 @@ use think\queue\Job;
 class JobFailed
 {
     /** @var string */
-    public $connector;
+    public $connection;
 
     /** @var Job */
     public $job;
@@ -15,10 +15,10 @@ class JobFailed
     /** @var \Exception */
     public $exception;
 
-    public function __construct($connector, $job, $exception)
+    public function __construct($connection, $job, $exception)
     {
-        $this->connector = $connector;
-        $this->job       = $job;
-        $this->exception = $exception;
+        $this->connection = $connection;
+        $this->job        = $job;
+        $this->exception  = $exception;
     }
 }

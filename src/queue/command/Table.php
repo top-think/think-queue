@@ -21,7 +21,7 @@ class Table extends Command
             return;
         }
 
-        $table = $this->app->config->get('queue.connectors.database.table');
+        $table = $this->app->config->get('queue.connections.database.table');
 
         $className = Str::studly("create_{$table}_table");
 

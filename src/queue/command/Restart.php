@@ -13,9 +13,12 @@ namespace think\queue\command;
 
 use think\Cache;
 use think\console\Command;
+use think\queue\InteractsWithTime;
 
 class Restart extends Command
 {
+    use InteractsWithTime;
+
     protected function configure()
     {
         $this->setName('queue:restart')
@@ -24,7 +27,7 @@ class Restart extends Command
 
     public function handle(Cache $cache)
     {
-        $cache->set('think:queue:restart', time());
+        $cache->set('think:queue:restart', $this->currentTime());
         $this->output->info("Broadcasting queue restart signal.");
     }
 }
