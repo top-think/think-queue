@@ -12,13 +12,9 @@
 
 ```
 [
-    'default'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动,topthink:Topthink驱动
-                   //或其他自定义的完整的类名
+    'default'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动//或其他自定义的完整的类名
 ]
 ```
-
-### 驱动配置
-> 各个驱动的具体可用配置项在`think\queue\connector`目录下各个驱动类里的`options`属性中，写在上面的`queue`配置里即可覆盖
 
 
 ## 创建任务类
