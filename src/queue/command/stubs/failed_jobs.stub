@@ -12,7 +12,7 @@ class CreateFailedJobsTable extends Migrator
             ->addColumn(Column::text('queue'))
             ->addColumn(Column::longText('payload'))
             ->addColumn(Column::longText('exception'))
-            ->addColumn(Column::timestamp('failed_at')->setDefault('CURRENT_TIMESTAMP'))
+            ->addColumn(Column::timestamp('fail_time')->setDefault('CURRENT_TIMESTAMP'))
             ->create();
     }
 }

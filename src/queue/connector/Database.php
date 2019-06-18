@@ -91,12 +91,12 @@ class Database extends Connector
         return $this->db->name($this->table)->insertAll(collect((array) $jobs)->map(
             function ($job) use ($queue, $data, $availableAt) {
                 return [
-                    'queue'        => $queue,
-                    'attempts'     => 0,
-                    'reserved_at'  => null,
-                    'available_at' => $availableAt,
-                    'created_at'   => $this->currentTime(),
-                    'payload'      => $this->createPayload($job, $data),
+                    'queue'          => $queue,
+                    'attempts'       => 0,
+                    'reserve_time'   => null,
+                    'available_time' => $availableAt,
+                    'create_time'    => $this->currentTime(),
+                    'payload'        => $this->createPayload($job, $data),
                 ];
             }
         )->all());
@@ -127,12 +127,12 @@ class Database extends Connector
     protected function pushToDatabase($queue, $payload, $delay = 0, $attempts = 0)
     {
         return $this->db->name($this->table)->insertGetId([
-            'queue'        => $this->getQueue($queue),
-            'attempts'     => $attempts,
-            'reserved_at'  => null,
-            'available_at' => $this->availableAt($delay),
-            'created_at'   => $this->currentTime(),
-            'payload'      => $payload,
+            'queue'          => $this->getQueue($queue),
+            'attempts'       => $attempts,
+            'reserve_time'   => null,
+            'available_time' => $this->availableAt($delay),
+            'create_time'    => $this->currentTime(),
+            'payload'        => $payload,
         ]);
     }
 
@@ -165,15 +165,15 @@ class Database extends Connector
             ->where('queue', $this->getQueue($queue))
             ->where(function (Query $query) {
                 $query->where(function (Query $query) {
-                    $query->whereNull('reserved_at')
-                        ->where('available_at', '<=', $this->currentTime());
+                    $query->whereNull('reserve_time')
+                        ->where('available_time', '<=', $this->currentTime());
                 });
 
                 //超时任务重试
                 $expiration = Carbon::now()->subSeconds($this->retryAfter)->getTimestamp();
 
                 $query->whereOr(function (Query $query) use ($expiration) {
-                    $query->where('reserved_at', '<=', $expiration);
+                    $query->where('reserve_time', '<=', $expiration);
                 });
             })
             ->order('id', 'asc')
@@ -191,8 +191,8 @@ class Database extends Connector
     protected function markJobAsReserved($job)
     {
         $this->db->name($this->table)->where('id', $job->id)->update([
-            'reserved_at' => $job->reserved_at = $this->currentTime(),
-            'attempts'    => ++$job->attempts,
+            'reserve_time' => $job->reserve_time = $this->currentTime(),
+            'attempts'     => ++$job->attempts,
         ]);
 
         return $job;

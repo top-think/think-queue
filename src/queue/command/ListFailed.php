@@ -13,7 +13,7 @@ class ListFailed extends Command
      *
      * @var array
      */
-    protected $headers = ['ID', 'Connection', 'Queue', 'Class', 'Failed At'];
+    protected $headers = ['ID', 'Connection', 'Queue', 'Class', 'Fail Time'];
 
     protected function configure()
     {

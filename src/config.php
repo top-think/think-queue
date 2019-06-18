@@ -13,15 +13,15 @@ return [
     'default'     => 'sync',
     'connections' => [
         'sync'     => [
-            'driver' => 'sync',
+            'type' => 'sync',
         ],
         'database' => [
-            'driver' => 'database',
-            'queue'  => 'default',
-            'table'  => 'jobs',
+            'type'  => 'database',
+            'queue' => 'default',
+            'table' => 'jobs',
         ],
         'redis'    => [
-            'driver'     => 'redis',
+            'type'       => 'redis',
             'queue'      => 'default',
             'host'       => '127.0.0.1',
             'port'       => 6379,

@@ -37,12 +37,12 @@ class Queue extends Factory
      */
     protected function getConfig($name)
     {
-        return $this->app->config->get("queue.connections.{$name}", ['driver' => 'sync']);
+        return $this->app->config->get("queue.connections.{$name}", ['type' => 'sync']);
     }
 
     protected function createDriver($name)
     {
-        $driver = $this->getConfig($name)['driver'];
+        $driver = $this->getConfig($name)['type'];
 
         $class = false !== strpos($driver, '\\') ? $driver : $this->namespace . Str::studly($driver);
 
