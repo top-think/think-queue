@@ -30,6 +30,7 @@ class Redis extends Connector
         'select'     => 0,
         'timeout'    => 0,
         'persistent' => false,
+        'prefix'     => ''
     ];
 
     public function __construct(array $options)
@@ -51,6 +52,10 @@ class Redis extends Connector
 
         if (0 != $this->options['select']) {
             $this->redis->select($this->options['select']);
+        }
+        
+        if ('' != $this->options['prefix']) {
+            $this->redis->setOption(\Redis::OPT_PREFIX, $this->options['prefix']);
         }
     }
 
