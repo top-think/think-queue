@@ -23,6 +23,7 @@
     },
     "minimum-stability": "dev",
     "require": {
+        "ext-json": "*",
         "topthink/think-helper": "^3.0.4",
         "topthink/framework": "^6.0.0",
         "topthink/think-factory": "^1.0.0",

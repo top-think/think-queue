@@ -14,6 +14,9 @@ namespace think\queue;
 trait Queueable
 {
 
+    /** @var string 连接 */
+    public $connection;
+
     /** @var string 队列名称 */
     public $queue;
 
@@ -21,11 +24,23 @@ trait Queueable
     public $delay;
 
     /**
+     * 设置连接名
+     * @param $connection
+     * @return $this
+     */
+    public function onConnection($connection)
+    {
+        $this->connection = $connection;
+
+        return $this;
+    }
+
+    /**
      * 设置队列名
      * @param $queue
      * @return $this
      */
-    public function queue($queue)
+    public function onQueue($queue)
     {
         $this->queue = $queue;
 

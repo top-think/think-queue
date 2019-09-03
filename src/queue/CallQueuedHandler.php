@@ -11,14 +11,22 @@
 
 namespace think\queue;
 
+use think\App;
+
 class CallQueuedHandler
 {
+    protected $app;
+
+    public function __construct(App $app)
+    {
+        $this->app = $app;
+    }
 
     public function call(Job $job, array $data)
     {
         $command = unserialize($data['command']);
 
-        call_user_func([$command, 'handle']);
+        $this->app->invoke([$command, 'handle']);
 
         if (!$job->isDeletedOrReleased()) {
             $job->delete();

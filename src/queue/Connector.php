@@ -88,23 +88,16 @@ abstract class Connector
 
     protected function createObjectPayload($job)
     {
-        $payload = [
+        return [
             'job'       => 'think\queue\CallQueuedHandler@call',
             'maxTries'  => $job->tries ?? null,
             'timeout'   => $job->timeout ?? null,
             'timeoutAt' => $this->getJobExpiration($job),
             'data'      => [
-                'commandName' => $job,
-                'command'     => $job,
-            ],
-        ];
-
-        return array_merge($payload, [
-            'data' => [
                 'commandName' => get_class($job),
                 'command'     => serialize(clone $job),
             ],
-        ]);
+        ];
     }
 
     public function getJobExpiration($job)
