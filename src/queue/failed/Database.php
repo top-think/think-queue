@@ -41,7 +41,7 @@ class Database extends FailedJob
      */
     public function log($connection, $queue, $payload, $exception)
     {
-        $failed_at = Carbon::now();
+        $fail_time = Carbon::now()->toDateTimeString();
 
         $exception = (string) $exception;
 
