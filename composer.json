@@ -1,11 +1,12 @@
 {
-    "name": "topthink/think-queue",
-    "description": "The ThinkPHP5 Queue Package",
-    "type": "think-extend",
+    "name": "csdjl88/think-queue",
+    "description": "think-queue for TP5.0 with Ampq",
+    "type": "library",
+    "license": "MIT",
     "authors": [
         {
-            "name": "yunwuxin",
-            "email": "448901948@qq.com"
+            "name": "csdjl88",
+            "email": "csdjl88@126.com"
         }
     ],
     "license": "Apache-2.0",
@@ -14,7 +15,7 @@
             "think\\": "src"
         },
         "files": [
-            "src/common.php"
+            "application/extra/queue.php"
         ]
     },
     "require": {
@@ -26,7 +27,7 @@
     },
     "extra": {
         "think-config": {
-            "queue": "src/config.php"
+            "queue":"application/extra/queue.php"
         }
     }
 }
