@@ -13,7 +13,8 @@
     "think\\queue\\command\\Work",
     "think\\queue\\command\\Restart",
     "think\\queue\\command\\Listen",
-    "think\\queue\\command\\Subscribe"
+    "think\\queue\\command\\Subscribe",
+    "think\\queue\\command\\Amqp"
 ]);
 
 if (!function_exists('queue')) {

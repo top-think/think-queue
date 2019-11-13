@@ -16,8 +16,8 @@ use think\console\Input;
 use think\console\input\Argument;
 use think\console\input\Option;
 use think\console\Output;
-use think\Queue;
 use think\Url;
+use think\Queue;
 
 class Subscribe extends Command
 {

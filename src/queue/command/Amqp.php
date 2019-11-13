@@ -21,26 +21,28 @@ use think\Cache;
 use think\Config;
 use think\Hook;
 use think\queue\Job;
-use think\queue\Worker;
+use think\queue\Amqp as AmqpQueue;
 use Throwable;
 
-class Work extends Command
+class Amqp extends Command
 {
 
     /**
      * The queue worker instance.
-     * @var \think\queue\Worker
+     * @var \think\queue\Amqp
      */
-    protected $worker;
+    protected $amqp;
+    protected $memory;
+    protected $lastRestart;
 
     protected function initialize(Input $input, Output $output)
     {
-        $this->worker = new Worker();
+        $this->amqp = new AmqpQueue();
     }
 
     protected function configure()
     {
-        $this->setName('queue:work')
+        $this->setName('queue:amqp')
             ->addOption('queue', null, Option::VALUE_OPTIONAL, 'The queue to listen on')
             ->addOption('daemon', null, Option::VALUE_NONE, 'Run the worker in daemon mode')
             ->addOption('delay', null, Option::VALUE_OPTIONAL, 'Amount of time to delay failed jobs', 0)
@@ -63,7 +65,7 @@ class Work extends Command
 
         $delay = $input->getOption('delay');
 
-        $memory = $input->getOption('memory');
+        $this->memory = $memory = $input->getOption('memory');
 
         if ($input->getOption('daemon')) {
             Hook::listen('worker_daemon_start', $queue);
@@ -72,7 +74,7 @@ class Work extends Command
                 $input->getOption('sleep'), $input->getOption('tries')
             );
         } else {
-            $response = $this->worker->pop($queue, $delay, $input->getOption('sleep'), $input->getOption('tries'));
+            $response = $this->amqp->pop($queue, $delay, $input->getOption('sleep'), $input->getOption('tries'));
             $this->output($response);
         }
     }
@@ -102,23 +104,38 @@ class Work extends Command
      */
     protected function daemon($queue = null, $delay = 0, $memory = 128, $sleep = 3, $maxTries = 0)
     {
-        $lastRestart = $this->getTimestampOfLastQueueRestart();
+        $this->lastRestart = $this->getTimestampOfLastQueueRestart();
 
-        while (true) {
-            $this->runNextJobForDaemon(
-                $queue, $delay, $sleep, $maxTries
-            );
+         do {
+             $this->runNextJobForDaemon(
+                 $queue, $delay, $sleep, $maxTries
+             );
 
-            if ($this->memoryExceeded($memory)) {
-                Hook::listen('worker_memory_exceeded', $queue);
-                $this->stop();
-            }
+             if ($this->memoryExceeded($memory)) {
+                 Hook::listen('worker_memory_exceeded', $queue);
+                 $this->stop();
+             }
 
-            if ($this->queueShouldRestart($lastRestart)) {
-                Hook::listen('worker_queue_restart', $queue);
-                $this->stop();
-            }
+             if ($this->queueShouldRestart($lastRestart)) {
+                 Hook::listen('worker_queue_restart', $queue);
+                 $this->stop();
+             }
+         } while (false);
+    }
+
+    public function checkDaemon($queue, $response)
+    {
+        if ($this->memoryExceeded($this->memory)) {
+            Hook::listen('worker_memory_exceeded', $queue);
+            $this->stop();
         }
+
+        if ($this->queueShouldRestart($this->lastRestart)) {
+            Hook::listen('worker_queue_restart', $queue);
+            $this->stop();
+        }
+
+        $this->output($response);
     }
 
     /**
@@ -133,9 +150,9 @@ class Work extends Command
     protected function runNextJobForDaemon($queue, $delay, $sleep, $maxTries)
     {
         try {
-            $response = $this->worker->pop($queue, $delay, $sleep, $maxTries);
-
-            $this->output($response);
+            $response = $this->amqp->getStartJob($this, $queue, $delay, $sleep, $maxTries);
+            //$response = $this->amqp->pop($queue, $delay, $sleep, $maxTries);
+            //$this->output($response);
         } catch (Exception $e) {
             $this->getExceptionHandler()->report($e);
         } catch (Throwable $e) {

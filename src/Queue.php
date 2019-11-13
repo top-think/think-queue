@@ -13,7 +13,7 @@ namespace think;
 
 use think\helper\Str;
 use think\queue\Connector;
-
+use think\Config;
 /**
  * Class Queue
  * @package think\queue

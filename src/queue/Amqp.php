@@ -14,9 +14,16 @@ namespace think\queue;
 use Exception;
 use think\Hook;
 use think\Queue;
+use think\queue\command\Amqp as AmqpCommand;
 
-class Worker
+class Amqp
 {
+
+    public function getStartJob(AmqpCommand $amqcmd, $queue = null, $delay = 0, $sleep = 3, $maxTries = 0)
+    {
+        $job = Queue::consume($this, $amqcmd, $queue, $delay, $maxTries);
+    }
+
 
     /**
      * 执行下个任务

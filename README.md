@@ -1,4 +1,4 @@
-# think-queue
+# think-queue for ThinkPHP5.0
 
 ## 安装
 > composer require topthink/think-queue
