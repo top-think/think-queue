@@ -147,7 +147,8 @@ abstract class Job
                 list($module, $name) = explode('/', $name, 2);
             }
 
-            $name = Env::get('app_namespace') . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
+            $name = Config::get('app_namespace') . ($module ? '\\' . strtolower($module) : '') . '\\job\\' . $name;
+
         }
         if (class_exists($name)) {
             return new $name();
