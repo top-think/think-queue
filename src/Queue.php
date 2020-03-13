@@ -11,50 +11,38 @@
 
 namespace think;
 
-use InvalidArgumentException;
-use think\cache\driver\Redis;
-use think\helper\Str;
 use think\queue\Connector;
 use think\queue\connector\Database;
+use think\queue\connector\Redis;
 
 /**
  * Class Queue
  * @package think\queue
  *
- * @method Connector driver($driver = null)
  * @mixin Database
  * @mixin Redis
  */
-class Queue extends Factory
+class Queue extends Manager
 {
     protected $namespace = '\\think\\queue\\connector\\';
 
-    /**
-     * Get the queue connector configuration.
-     *
-     * @param string $name
-     * @return array
-     */
-    protected function getConfig($name)
+    protected function resolveType(string $name)
     {
-        return $this->app->config->get("queue.connections.{$name}", ['type' => 'sync']);
+        return $this->app->config->get("queue.connections.{$name}.type", 'sync');
     }
 
-    protected function createDriver($name)
+    protected function resolveConfig(string $name)
     {
-        $driver = $this->getConfig($name)['type'];
+        return $this->app->config->get("queue.connections.{$name}");
+    }
 
-        $class = false !== strpos($driver, '\\') ? $driver : $this->namespace . Str::studly($driver);
-
+    protected function createDriver(string $name)
+    {
         /** @var Connector $driver */
-        if (class_exists($class)) {
-            $driver = $this->app->invokeClass($class, [$this->getConfig($driver)]);
+        $driver = parent::createDriver($name);
 
-            return $driver->setApp($this->app)
-                ->setConnection($name);
-        }
-
-        throw new InvalidArgumentException("Driver [$driver] not supported.");
+        return $driver->setApp($this->app)
+            ->setConnection($name);
     }
 
     /**
