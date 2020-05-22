@@ -144,7 +144,7 @@ class Redis extends Connector
      *
      * @param string $from
      * @param string $to
-     * @param bool   $attempt
+     * @param bool $attempt
      */
     public function migrateExpiredJobs($from, $to, $attempt = true)
     {
@@ -222,7 +222,7 @@ class Redis extends Connector
     /**
      * 删除任务
      *
-     * @param string   $queue
+     * @param string $queue
      * @param RedisJob $job
      * @return void
      */
@@ -234,9 +234,9 @@ class Redis extends Connector
     /**
      * Delete a reserved job from the reserved queue and release it.
      *
-     * @param string   $queue
+     * @param string $queue
      * @param RedisJob $job
-     * @param int      $delay
+     * @param int $delay
      * @return void
      */
     public function deleteAndRelease($queue, $job, $delay)
@@ -293,6 +293,7 @@ class Redis extends Connector
      */
     protected function getQueue($queue)
     {
-        return 'queues:' . ($queue ?: $this->default);
+        $queue = $queue ?: $this->default;
+        return "{queues:{$queue}}";
     }
 }
