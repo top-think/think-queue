@@ -14,6 +14,7 @@ namespace think\queue\connector;
 use Carbon\Carbon;
 use stdClass;
 use think\Db;
+use think\db\ConnectionInterface;
 use think\db\Query;
 use think\queue\Connector;
 use think\queue\InteractsWithTime;
@@ -47,7 +48,7 @@ class Database extends Connector
      */
     protected $retryAfter = 60;
 
-    public function __construct(Db $db, $table, $default = 'default', $retryAfter = 60)
+    public function __construct(ConnectionInterface $db, $table, $default = 'default', $retryAfter = 60)
     {
         $this->db         = $db;
         $this->table      = $table;
@@ -57,7 +58,9 @@ class Database extends Connector
 
     public static function __make(Db $db, $config)
     {
-        return new self($db, $config['table'], $config['queue'], $config['retry_after'] ?? 60);
+        $connection = $db->connect($config['connection'] ?? null);
+
+        return new self($connection, $config['table'], $config['queue'], $config['retry_after'] ?? 60);
     }
 
     public function size($queue = null)
@@ -105,9 +108,9 @@ class Database extends Connector
     /**
      * 重新发布任务
      *
-     * @param string   $queue
+     * @param string $queue
      * @param StdClass $job
-     * @param int      $delay
+     * @param int $delay
      * @return mixed
      */
     public function release($queue, $job, $delay)
@@ -119,9 +122,9 @@ class Database extends Connector
      * Push a raw payload to the database with a given delay.
      *
      * @param \DateTime|int $delay
-     * @param string|null   $queue
-     * @param string        $payload
-     * @param int           $attempts
+     * @param string|null $queue
+     * @param string $payload
+     * @param int $attempts
      * @return mixed
      */
     protected function pushToDatabase($queue, $payload, $delay = 0, $attempts = 0)
@@ -160,7 +163,8 @@ class Database extends Connector
     protected function getNextAvailableJob($queue)
     {
 
-        $job = $this->db->name($this->table)
+        $job = $this->db
+            ->name($this->table)
             ->lock(true)
             ->where('queue', $this->getQueue($queue))
             ->where(function (Query $query) {
@@ -190,10 +194,13 @@ class Database extends Connector
      */
     protected function markJobAsReserved($job)
     {
-        $this->db->name($this->table)->where('id', $job->id)->update([
-            'reserve_time' => $job->reserve_time = $this->currentTime(),
-            'attempts'     => ++$job->attempts,
-        ]);
+        $this->db
+            ->name($this->table)
+            ->where('id', $job->id)
+            ->update([
+                'reserve_time' => $job->reserve_time = $this->currentTime(),
+                'attempts'     => ++$job->attempts,
+            ]);
 
         return $job;
     }

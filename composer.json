@@ -24,7 +24,6 @@
     "minimum-stability": "dev",
     "require": {
         "ext-json": "*",
-        "topthink/think-helper": "^3.0.4",
         "topthink/framework": "^6.0",
         "symfony/process": "^4.2",
         "nesbot/carbon": "^2.16"

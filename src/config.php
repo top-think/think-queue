@@ -16,9 +16,10 @@ return [
             'type' => 'sync',
         ],
         'database' => [
-            'type'  => 'database',
-            'queue' => 'default',
-            'table' => 'jobs',
+            'type'       => 'database',
+            'queue'      => 'default',
+            'table'      => 'jobs',
+            'connection' => null,
         ],
         'redis'    => [
             'type'       => 'redis',
