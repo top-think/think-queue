@@ -65,7 +65,7 @@ class Database extends Connector
 
     public function size($queue = null)
     {
-        $this->db->name($this->table)
+        return $this->db->name($this->table)
             ->where('queue', $this->getQueue($queue))
             ->count();
     }
