@@ -13,6 +13,6 @@ class Queue extends Facade
 {
     protected static function getFacadeClass()
     {
-        return 'queue';
+        return 'think\queue';
     }
 }
