@@ -1,6 +1,6 @@
 <?php
 
-namespace shirakun\queue\event;
+namespace think\queue\event;
 
 class WorkerStopping
 {

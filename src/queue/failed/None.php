@@ -1,8 +1,8 @@
 <?php
 
-namespace shirakun\queue\failed;
+namespace think\queue\failed;
 
-use shirakun\queue\FailedJob;
+use think\queue\FailedJob;
 
 class None extends FailedJob
 {

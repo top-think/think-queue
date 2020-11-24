@@ -9,10 +9,10 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace shirakun\queue\job;
+namespace think\queue\job;
 
 use think\App;
-use shirakun\queue\Job;
+use think\queue\Job;
 
 class Sync extends Job
 {

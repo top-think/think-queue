@@ -8,8 +8,8 @@ use Mockery\MockInterface;
 use ReflectionClass;
 use stdClass;
 use think\Db;
-use shirakun\queue\Connector;
-use shirakun\queue\connector\Database;
+use think\queue\Connector;
+use think\queue\connector\Database;
 
 class DatabaseConnectorTest extends TestCase
 {

@@ -9,7 +9,7 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace shirakun\queue;
+namespace think\queue;
 
 use Exception;
 use think\App;

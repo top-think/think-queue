@@ -9,7 +9,7 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace shirakun\queue;
+namespace think\queue;
 
 use DateTimeInterface;
 use InvalidArgumentException;
@@ -89,7 +89,7 @@ abstract class Connector
     protected function createObjectPayload($job)
     {
         return [
-            'job'       => 'shirakun\queue\CallQueuedHandler@call',
+            'job'       => 'think\queue\CallQueuedHandler@call',
             'maxTries'  => $job->tries ?? null,
             'timeout'   => $job->timeout ?? null,
             'timeoutAt' => $this->getJobExpiration($job),

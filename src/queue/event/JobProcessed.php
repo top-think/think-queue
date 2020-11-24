@@ -1,8 +1,8 @@
 <?php
 
-namespace shirakun\queue\event;
+namespace think\queue\event;
 
-use shirakun\queue\Job;
+use think\queue\Job;
 
 class JobProcessed
 {

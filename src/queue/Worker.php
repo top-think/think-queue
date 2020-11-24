@@ -9,7 +9,7 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace shirakun\queue;
+namespace think\queue;
 
 use Carbon\Carbon;
 use Exception;
@@ -17,13 +17,13 @@ use RuntimeException;
 use think\Cache;
 use think\Event;
 use think\exception\Handle;
-use shirakun\queue;
-use shirakun\queue\event\JobExceptionOccurred;
-use shirakun\queue\event\JobFailed;
-use shirakun\queue\event\JobProcessed;
-use shirakun\queue\event\JobProcessing;
-use shirakun\queue\event\WorkerStopping;
-use shirakun\queue\exception\MaxAttemptsExceededException;
+use think\queue;
+use think\queue\event\JobExceptionOccurred;
+use think\queue\event\JobFailed;
+use think\queue\event\JobProcessed;
+use think\queue\event\JobProcessing;
+use think\queue\event\WorkerStopping;
+use think\queue\exception\MaxAttemptsExceededException;
 use Throwable;
 
 class Worker

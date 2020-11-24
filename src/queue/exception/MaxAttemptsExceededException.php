@@ -1,6 +1,6 @@
 <?php
 
-namespace shirakun\queue\exception;
+namespace think\queue\exception;
 
 use RuntimeException;
 

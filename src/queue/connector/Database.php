@@ -9,16 +9,16 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace shirakun\queue\connector;
+namespace think\queue\connector;
 
 use Carbon\Carbon;
 use stdClass;
 use think\Db;
 use think\db\ConnectionInterface;
 use think\db\Query;
-use shirakun\queue\Connector;
-use shirakun\queue\InteractsWithTime;
-use shirakun\queue\job\Database as DatabaseJob;
+use think\queue\Connector;
+use think\queue\InteractsWithTime;
+use think\queue\job\Database as DatabaseJob;
 
 class Database extends Connector
 {
