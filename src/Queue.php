@@ -24,7 +24,7 @@ use shirakun\queue\connector\Redis;
  */
 class Queue extends Manager
 {
-    protected $namespace = '\\think\\queue\\connector\\';
+    protected $namespace = '\\shirakun\\queue\\connector\\';
 
     protected function resolveType(string $name)
     {
