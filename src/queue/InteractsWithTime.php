@@ -1,6 +1,6 @@
 <?php
 
-namespace think\queue;
+namespace shirakun\queue;
 
 use Carbon\Carbon;
 use DateInterval;

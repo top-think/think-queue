@@ -5,7 +5,7 @@ namespace think\test\queue;
 use Mockery as m;
 use Mockery\MockInterface;
 use Symfony\Component\Process\Process;
-use think\queue\Listener;
+use shirakun\queue\Listener;
 
 class ListenerTest extends TestCase
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace think\queue;
+namespace shirakun\queue;
 
 abstract class FailedJob
 {

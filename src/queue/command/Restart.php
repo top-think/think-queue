@@ -9,11 +9,11 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace think\queue\command;
+namespace shirakun\queue\command;
 
 use think\Cache;
 use think\console\Command;
-use think\queue\InteractsWithTime;
+use shirakun\queue\InteractsWithTime;
 
 class Restart extends Command
 {

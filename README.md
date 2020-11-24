@@ -2,7 +2,7 @@
 
 ## 安装
 
-> composer require topthink/think-queue
+> composer require shirakun/think-queue
 
 ## 配置
 
@@ -23,7 +23,7 @@
 > 也可以放在任意可以自动加载到的地方
 
 任务类不需继承任何类，如果这个类只有一个任务，那么就只需要提供一个`fire`方法就可以了，如果有多个小任务，就写多个方法，下面发布任务的时候会有区别  
-每个方法会传入两个参数 `think\queue\Job $job`（当前的任务对象） 和 `$data`（发布任务时自定义的数据）
+每个方法会传入两个参数 `shirakun\queue\Job $job`（当前的任务对象） 和 `$data`（发布任务时自定义的数据）
 
 还有个可选的任务失败执行的方法 `failed` 传入的参数为`$data`（发布任务时自定义的数据）
 
@@ -32,7 +32,7 @@
 ```
 namespace app\job;
 
-use think\queue\Job;
+use shirakun\queue\Job;
 
 class Job1{
     
@@ -66,7 +66,7 @@ class Job1{
 
 namespace app\lib\job;
 
-use think\queue\Job;
+use shirakun\queue\Job;
 
 class Job2{
     

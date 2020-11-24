@@ -7,12 +7,12 @@ use think\Facade;
 /**
  * Class Queue
  * @package think\facade
- * @mixin \think\Queue
+ * @mixin \shirakun\queue
  */
 class Queue extends Facade
 {
     protected static function getFacadeClass()
     {
-        return 'think\queue';
+        return 'shirakun\queue';
     }
 }

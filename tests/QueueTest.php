@@ -5,8 +5,8 @@ namespace think\test\queue;
 use InvalidArgumentException;
 use Mockery as m;
 use think\Config;
-use think\Queue;
-use think\queue\connector\Sync;
+use shirakun\queue;
+use shirakun\queue\connector\Sync;
 
 class QueueTest extends TestCase
 {
@@ -23,7 +23,7 @@ class QueueTest extends TestCase
     {
         $sync = new Sync();
 
-        $this->app->shouldReceive('invokeClass')->once()->with('\think\queue\connector\Sync', [['driver' => 'sync']])->andReturn($sync);
+        $this->app->shouldReceive('invokeClass')->once()->with('\shirakun\queue\connector\Sync', [['driver' => 'sync']])->andReturn($sync);
 
         $config = m::mock(Config::class);
 

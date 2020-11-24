@@ -1,9 +1,9 @@
 <?php
 
-namespace think\queue\event;
+namespace shirakun\queue\event;
 
 use Exception;
-use think\queue\Job;
+use shirakun\queue\Job;
 
 class JobExceptionOccurred
 {

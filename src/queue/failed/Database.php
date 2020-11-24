@@ -1,10 +1,10 @@
 <?php
 
-namespace think\queue\failed;
+namespace shirakun\queue\failed;
 
 use Carbon\Carbon;
 use think\Db;
-use think\queue\FailedJob;
+use shirakun\queue\FailedJob;
 
 class Database extends FailedJob
 {

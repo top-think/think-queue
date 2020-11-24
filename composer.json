@@ -1,10 +1,10 @@
 {
-    "name": "topthink/think-queue",
-    "description": "The ThinkPHP6 Queue Package",
+    "name": "shirakun/think-queue",
+    "description": "Because the authorities are not willing to merge or fix the problem(https://github.com/top-think/think-queue/pull/128),\nSo create a new composer package.",
     "authors": [
         {
-            "name": "yunwuxin",
-            "email": "448901948@qq.com"
+            "name": "Shira Kagurazaka",
+            "email": "nico@ni-co.moe"
         }
     ],
     "license": "Apache-2.0",

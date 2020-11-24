@@ -9,13 +9,13 @@ use RuntimeException;
 use think\Cache;
 use think\Event;
 use think\exception\Handle;
-use think\Queue;
-use think\queue\connector\Sync;
-use think\queue\event\JobExceptionOccurred;
-use think\queue\event\JobFailed;
-use think\queue\event\JobProcessed;
-use think\queue\event\JobProcessing;
-use think\queue\exception\MaxAttemptsExceededException;
+use shirakun\queue;
+use shirakun\queue\connector\Sync;
+use shirakun\queue\event\JobExceptionOccurred;
+use shirakun\queue\event\JobFailed;
+use shirakun\queue\event\JobProcessed;
+use shirakun\queue\event\JobProcessing;
+use shirakun\queue\exception\MaxAttemptsExceededException;
 
 class WorkerTest extends TestCase
 {
@@ -288,7 +288,7 @@ class WorkerFakeConnector
     }
 }
 
-class Worker extends \think\queue\Worker
+class Worker extends \shirakun\queue\Worker
 {
     public $sleptFor;
 

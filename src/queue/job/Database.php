@@ -8,11 +8,11 @@
 // +----------------------------------------------------------------------
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
-namespace think\queue\job;
+namespace shirakun\queue\job;
 
 use think\App;
-use think\queue\connector\Database as DatabaseQueue;
-use think\queue\Job;
+use shirakun\queue\connector\Database as DatabaseQueue;
+use shirakun\queue\Job;
 
 class Database extends Job
 {

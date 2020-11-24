@@ -11,13 +11,13 @@
 
 namespace think;
 
-use think\queue\Connector;
-use think\queue\connector\Database;
-use think\queue\connector\Redis;
+use shirakun\queue\Connector;
+use shirakun\queue\connector\Database;
+use shirakun\queue\connector\Redis;
 
 /**
  * Class Queue
- * @package think\queue
+ * @package shirakun\queue
  *
  * @mixin Database
  * @mixin Redis

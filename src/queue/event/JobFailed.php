@@ -1,8 +1,8 @@
 <?php
 
-namespace think\queue\event;
+namespace shirakun\queue\event;
 
-use think\queue\Job;
+use shirakun\queue\Job;
 
 class JobFailed
 {
