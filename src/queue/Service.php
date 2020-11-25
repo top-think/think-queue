@@ -2,9 +2,7 @@
 
 namespace shirakun\queue;
 
-use think\helper\Arr;
-use think\helper\Str;
-use shirakun\queue;
+use shirakun\Queue;
 use shirakun\queue\command\FailedTable;
 use shirakun\queue\command\FlushFailed;
 use shirakun\queue\command\ForgetFailed;
@@ -14,6 +12,8 @@ use shirakun\queue\command\Restart;
 use shirakun\queue\command\Retry;
 use shirakun\queue\command\Table;
 use shirakun\queue\command\Work;
+use think\helper\Arr;
+use think\helper\Str;
 
 class Service extends \think\Service
 {
