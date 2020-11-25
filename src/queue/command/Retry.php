@@ -1,6 +1,6 @@
 <?php
 
-namespace think\queue\command;
+namespace shirakun\queue\command;
 
 use stdClass;
 use think\console\Command;

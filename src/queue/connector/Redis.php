@@ -9,14 +9,14 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace think\queue\connector;
+namespace shirakun\queue\connector;
 
 use Closure;
 use Exception;
 use think\helper\Str;
-use think\queue\Connector;
-use think\queue\InteractsWithTime;
-use think\queue\job\Redis as RedisJob;
+use shirakun\queue\Connector;
+use shirakun\queue\InteractsWithTime;
+use shirakun\queue\job\Redis as RedisJob;
 
 class Redis extends Connector
 {

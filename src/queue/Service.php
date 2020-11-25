@@ -1,19 +1,19 @@
 <?php
 
-namespace think\queue;
+namespace shirakun\queue;
 
 use think\helper\Arr;
 use think\helper\Str;
-use think\queue;
-use think\queue\command\FailedTable;
-use think\queue\command\FlushFailed;
-use think\queue\command\ForgetFailed;
-use think\queue\command\Listen;
-use think\queue\command\ListFailed;
-use think\queue\command\Restart;
-use think\queue\command\Retry;
-use think\queue\command\Table;
-use think\queue\command\Work;
+use shirakun\queue;
+use shirakun\queue\command\FailedTable;
+use shirakun\queue\command\FlushFailed;
+use shirakun\queue\command\ForgetFailed;
+use shirakun\queue\command\Listen;
+use shirakun\queue\command\ListFailed;
+use shirakun\queue\command\Restart;
+use shirakun\queue\command\Retry;
+use shirakun\queue\command\Table;
+use shirakun\queue\command\Work;
 
 class Service extends \think\Service
 {
@@ -26,7 +26,7 @@ class Service extends \think\Service
 
             $type = Arr::pull($config, 'type', 'none');
 
-            $class = false !== strpos($type, '\\') ? $type : '\\think\\queue\\failed\\' . Str::studly($type);
+            $class = false !== strpos($type, '\\') ? $type : '\\shirakun\\queue\\failed\\' . Str::studly($type);
 
             return $this->app->invokeClass($class, [$config]);
         });

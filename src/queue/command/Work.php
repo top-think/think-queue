@@ -8,18 +8,18 @@
 // +----------------------------------------------------------------------
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
-namespace think\queue\command;
+namespace shirakun\queue\command;
 
 use think\console\Command;
 use think\console\Input;
 use think\console\input\Argument;
 use think\console\input\Option;
 use think\console\Output;
-use think\queue\event\JobFailed;
-use think\queue\event\JobProcessed;
-use think\queue\event\JobProcessing;
-use think\queue\Job;
-use think\queue\Worker;
+use shirakun\queue\event\JobFailed;
+use shirakun\queue\event\JobProcessed;
+use shirakun\queue\event\JobProcessing;
+use shirakun\queue\Job;
+use shirakun\queue\Worker;
 
 class Work extends Command
 {

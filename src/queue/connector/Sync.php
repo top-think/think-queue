@@ -9,14 +9,14 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace think\queue\connector;
+namespace shirakun\queue\connector;
 
 use Exception;
-use think\queue\Connector;
-use think\queue\event\JobFailed;
-use think\queue\event\JobProcessed;
-use think\queue\event\JobProcessing;
-use think\queue\job\Sync as SyncJob;
+use shirakun\queue\Connector;
+use shirakun\queue\event\JobFailed;
+use shirakun\queue\event\JobProcessed;
+use shirakun\queue\event\JobProcessing;
+use shirakun\queue\job\Sync as SyncJob;
 use Throwable;
 
 class Sync extends Connector

@@ -1,6 +1,6 @@
 <?php
 
-namespace think\test\queue;
+namespace shirakun\test\queue;
 
 use Carbon\Carbon;
 use Mockery as m;
@@ -8,8 +8,8 @@ use Mockery\MockInterface;
 use ReflectionClass;
 use stdClass;
 use think\Db;
-use think\queue\Connector;
-use think\queue\connector\Database;
+use shirakun\queue\Connector;
+use shirakun\queue\connector\Database;
 
 class DatabaseConnectorTest extends TestCase
 {

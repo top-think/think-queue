@@ -18,7 +18,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "think\\test\\queue\\": "tests"
+            "shirakun\\test\\queue\\": "tests"
         }
     },
     "minimum-stability": "dev",
@@ -31,7 +31,7 @@
     "extra": {
         "think": {
             "services": [
-                "think\\queue\\Service"
+                "shirakun\\queue\\Service"
             ],
             "config": {
                 "queue": "src/config.php"

@@ -1,6 +1,6 @@
 <?php
 
-namespace think\test\queue;
+namespace shirakun\test\queue;
 
 use Mockery as m;
 use Mockery\MockInterface;

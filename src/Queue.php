@@ -9,22 +9,22 @@
 // | Author: yunwuxin <448901948@qq.com>
 // +----------------------------------------------------------------------
 
-namespace think;
+namespace shirakun;
 
-use think\queue\Connector;
-use think\queue\connector\Database;
-use think\queue\connector\Redis;
+use shirakun\queue\Connector;
+use shirakun\queue\connector\Database;
+use shirakun\queue\connector\Redis;
 
 /**
  * Class Queue
- * @package think\queue
+ * @package shirakun\queue
  *
  * @mixin Database
  * @mixin Redis
  */
 class Queue extends Manager
 {
-    protected $namespace = '\\think\\queue\\connector\\';
+    protected $namespace = '\\shirakun\\queue\\connector\\';
 
     protected function resolveType(string $name)
     {
