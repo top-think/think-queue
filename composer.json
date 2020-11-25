@@ -29,7 +29,7 @@
         "nesbot/carbon": "^2.16"
     },
     "extra": {
-        "shirakun": {
+        "think": {
             "services": [
                 "shirakun\\queue\\Service"
             ],
