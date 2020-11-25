@@ -5,7 +5,7 @@ namespace shirakun\test\queue;
 use InvalidArgumentException;
 use Mockery as m;
 use think\Config;
-use shirakun\Queue;
+use shirakun\queue;
 use shirakun\queue\connector\Sync;
 
 class QueueTest extends TestCase

@@ -9,7 +9,7 @@ use RuntimeException;
 use think\Cache;
 use think\Event;
 use think\exception\Handle;
-use shirakun\Queue;
+use shirakun\queue;
 use shirakun\queue\connector\Sync;
 use shirakun\queue\event\JobExceptionOccurred;
 use shirakun\queue\event\JobFailed;

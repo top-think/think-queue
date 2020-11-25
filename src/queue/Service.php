@@ -2,7 +2,7 @@
 
 namespace shirakun\queue;
 
-use shirakun\Queue;
+use shirakun\queue;
 use shirakun\queue\command\FailedTable;
 use shirakun\queue\command\FlushFailed;
 use shirakun\queue\command\ForgetFailed;

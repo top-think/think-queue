@@ -22,7 +22,7 @@ use shirakun\queue\connector\Redis;
  * @mixin Database
  * @mixin Redis
  */
-class Queue extends Manager
+class Queue extends \think\Manager
 {
     protected $namespace = '\\shirakun\\queue\\connector\\';
 
