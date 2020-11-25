@@ -29,16 +29,13 @@
         "nesbot/carbon": "^2.16"
     },
     "extra": {
-        "think": {
-            "config": {
-                "queue": "src/config.php"
-            }
-        },
-        
         "shirakun": {
             "services": [
                 "shirakun\\queue\\Service"
-            ]
+            ],
+            "config": {
+                "queue": "src/config.php"
+            }
         }
     },
     "require-dev": {
