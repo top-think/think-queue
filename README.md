@@ -10,7 +10,7 @@
 
 ### 公共配置
 
-```
+```bash
 [
     'default'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动//或其他自定义的完整的类名
 ]
@@ -29,7 +29,7 @@
 
 ### 下面写两个例子
 
-```
+```php
 namespace app\job;
 
 use think\queue\Job;
@@ -62,7 +62,7 @@ class Job1{
 
 ```
 
-```
+```php
 
 namespace app\lib\job;
 
@@ -105,10 +105,12 @@ class Job2{
 
 ## 监听任务并执行
 
-> php think queue:listen
+```bash
+&> php think queue:listen
 
-> php think queue:work
+&> php think queue:work
+```
 
-两种，具体的可选参数可以输入命令加 --help 查看
+两种，具体的可选参数可以输入命令加 `--help` 查看
 
->可配合supervisor使用，保证进程常驻
+> 可配合supervisor使用，保证进程常驻
