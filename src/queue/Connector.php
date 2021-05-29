@@ -29,7 +29,7 @@ abstract class Connector
 
     protected $options = [];
 
-    abstract public function size($queue);
+    abstract public function size($queue = null);
 
     abstract public function push($job, $data = '', $queue = null);
 

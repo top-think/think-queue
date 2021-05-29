@@ -76,7 +76,7 @@ class Redis extends Connector
         return new self($redis, $config['queue'], $config['retry_after'] ?? 60, $config['block_for'] ?? null);
     }
 
-    public function size($queue)
+    public function size($queue = null)
     {
         $queue = $this->getQueue($queue);
 
@@ -90,9 +90,9 @@ class Redis extends Connector
 
     public function pushRaw($payload, $queue = null, array $options = [])
     {
-        $this->redis->rPush($this->getQueue($queue), $payload);
-
-        return json_decode($payload, true)['id'] ?? null;
+        if ($this->redis->rPush($this->getQueue($queue), $payload)) {
+            return json_decode($payload, true)['id'] ?? null;
+        }
     }
 
     public function later($delay, $job, $data = '', $queue = null)
@@ -102,11 +102,11 @@ class Redis extends Connector
 
     protected function laterRaw($delay, $payload, $queue = null)
     {
-        $this->redis->zadd(
+        if ($this->redis->zadd(
             $this->getQueue($queue) . ':delayed', $this->availableAt($delay), $payload
-        );
-
-        return json_decode($payload, true)['id'] ?? null;
+        )) {
+            return json_decode($payload, true)['id'] ?? null;
+        }
     }
 
     public function pop($queue = null)
