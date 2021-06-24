@@ -65,7 +65,8 @@ class Database extends Connector
 
     public function size($queue = null)
     {
-        return $this->db->name($this->table)
+        return $this->db
+            ->name($this->table)
             ->where('queue', $this->getQueue($queue))
             ->count();
     }
@@ -170,7 +171,7 @@ class Database extends Connector
             ->where(function (Query $query) {
                 $query->where(function (Query $query) {
                     $query->whereNull('reserve_time')
-                        ->where('available_time', '<=', $this->currentTime());
+                          ->where('available_time', '<=', $this->currentTime());
                 });
 
                 //超时任务重试
