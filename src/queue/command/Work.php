@@ -132,7 +132,8 @@ class Work extends Command
             "<{$type}>[%s][%s] %s</{$type}> %s",
             date('Y-m-d H:i:s'),
             $job->getJobId(),
-            str_pad("{$status}:", 11), $job->getName()
+            str_pad("{$status}:", 11),
+            $job->getName()
         ));
     }
 
@@ -143,8 +144,10 @@ class Work extends Command
     protected function logFailedJob(JobFailed $event)
     {
         $this->app['queue.failer']->log(
-            $event->connection, $event->job->getQueue(),
-            $event->job->getRawBody(), $event->exception
+            $event->connection,
+            $event->job->getQueue(),
+            $event->job->getRawBody(),
+            $event->exception
         );
     }
 

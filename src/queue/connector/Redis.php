@@ -133,7 +133,9 @@ class Redis extends Connector
     protected function laterRaw($delay, $payload, $queue = null)
     {
         if ($this->redis->zadd(
-            $this->getQueue($queue) . ':delayed', $this->availableAt($delay), $payload
+            $this->getQueue($queue) . ':delayed',
+            $this->availableAt($delay),
+            $payload
         )) {
             return json_decode($payload, true)['id'] ?? null;
         }
