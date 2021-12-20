@@ -21,14 +21,14 @@ class Sync extends Job
      *
      * @var string
      */
-    protected $payload;
+    protected $job;
 
-    public function __construct(App $app, $payload, $connection, $queue)
+    public function __construct(App $app, $job, $connection, $queue)
     {
         $this->app        = $app;
         $this->connection = $connection;
         $this->queue      = $queue;
-        $this->payload    = $payload;
+        $this->job        = $job;
     }
 
     /**
@@ -46,7 +46,7 @@ class Sync extends Job
      */
     public function getRawBody()
     {
-        return $this->payload;
+        return $this->job;
     }
 
     /**
