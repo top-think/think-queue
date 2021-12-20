@@ -14,6 +14,7 @@ namespace think\queue;
 use Exception;
 use think\App;
 use think\helper\Arr;
+use think\helper\Str;
 
 abstract class Job
 {
@@ -193,18 +194,11 @@ abstract class Job
      */
     protected function resolve($name, $param)
     {
-        if (strpos($name, '\\') === false) {
+        $namespace = $this->app->getNamespace() . '\\job\\';
 
-            if (strpos($name, '/') === false) {
-                $app = '';
-            } else {
-                [$app, $name] = explode('/', $name, 2);
-            }
+        $class = false !== strpos($name, '\\') ? $name : $namespace . Str::studly($name);
 
-            $name = ($this->app->config->get('app.app_namespace') ?: 'app\\') . ($app ? strtolower($app) . '\\' : '') . 'job\\' . $name;
-        }
-
-        return $this->app->make($name, [$param], true);
+        return $this->app->make($class, [$param], true);
     }
 
     public function getResolvedJob()

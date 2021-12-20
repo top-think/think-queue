@@ -18,8 +18,7 @@
 
 
 ## 创建任务类
-> 单模块项目推荐使用 `app\job` 作为任务类的命名空间
-> 多模块项目可用使用 `app\module\job` 作为任务类的命名空间
+> 推荐使用 `app\job` 作为任务类的命名空间
 > 也可以放在任意可以自动加载到的地方
 
 任务类不需继承任何类，如果这个类只有一个任务，那么就只需要提供一个`fire`方法就可以了，如果有多个小任务，就写多个方法，下面发布任务的时候会有区别  
@@ -94,8 +93,7 @@ class Job2{
 > `think\facade\Queue::push($job, $data = '', $queue = null)` 和 `think\facade\Queue::later($delay, $job, $data = '', $queue = null)` 两个方法，前者是立即执行，后者是在`$delay`秒后执行
 
 `$job` 是任务名  
-单模块的，且命名空间是`app\job`的，比如上面的例子一,写`Job1`类名即可  
-多模块的，且命名空间是`app\module\job`的，写`model/Job1`即可  
+命名空间是`app\job`的，比如上面的例子一,写`Job1`类名即可  
 其他的需要些完整的类名，比如上面的例子二，需要写完整的类名`app\lib\job\Job2`  
 如果一个任务类里有多个小任务的话，如上面的例子二，需要用@+方法名`app\lib\job\Job2@task1`、`app\lib\job\Job2@task2`
 
