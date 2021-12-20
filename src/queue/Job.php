@@ -13,15 +13,22 @@ namespace think\queue;
 
 use Exception;
 use think\App;
+use think\helper\Arr;
 
 abstract class Job
 {
 
     /**
      * The job handler instance.
-     * @var mixed
+     * @var object
      */
-    protected $instance;
+    private $instance;
+
+    /**
+     *  The JSON decoded version of "$job".
+     * @var array
+     */
+    private $payload;
 
     /**
      * @var App
@@ -61,11 +68,17 @@ abstract class Job
     /**
      * Get the decoded body of the job.
      *
-     * @return array
+     * @return mixed
      */
-    public function payload()
+    public function payload($name = null, $default = null)
     {
-        return json_decode($this->getRawBody(), true);
+        if (empty($this->payload)) {
+            $this->payload = json_decode($this->getRawBody(), true);
+        }
+        if (empty($name)) {
+            return $this->payload;
+        }
+        return Arr::get($this->payload, $name, $default);
     }
 
     /**
@@ -74,13 +87,25 @@ abstract class Job
      */
     public function fire()
     {
-        $payload = $this->payload();
+        $instance = $this->getResolvedJob();
 
-        list($class, $method) = $this->parseJob($payload['job']);
+        [, $method] = $this->getParsedJob();
 
-        $this->instance = $this->resolve($class);
-        if ($this->instance) {
-            $this->instance->{$method}($this, $payload['data']);
+        $instance->{$method}($this, $this->payload('data'));
+    }
+
+    /**
+     * Process an exception that caused the job to fail.
+     *
+     * @param Exception $e
+     * @return void
+     */
+    public function failed($e)
+    {
+        $instance = $this->getResolvedJob();
+
+        if (method_exists($instance, 'failed')) {
+            $instance->failed($this->payload('data'), $e);
         }
     }
 
@@ -151,11 +176,11 @@ abstract class Job
 
     /**
      * Parse the job declaration into class and method.
-     * @param string $job
      * @return array
      */
-    protected function parseJob($job)
+    protected function getParsedJob()
     {
+        $job      = $this->payload('job');
         $segments = explode('@', $job);
 
         return count($segments) > 1 ? $segments : [$segments[0], 'fire'];
@@ -166,20 +191,31 @@ abstract class Job
      * @param string $name
      * @return mixed
      */
-    protected function resolve($name)
+    protected function resolve($name, $param)
     {
         if (strpos($name, '\\') === false) {
 
             if (strpos($name, '/') === false) {
                 $app = '';
             } else {
-                list($app, $name) = explode('/', $name, 2);
+                [$app, $name] = explode('/', $name, 2);
             }
 
             $name = ($this->app->config->get('app.app_namespace') ?: 'app\\') . ($app ? strtolower($app) . '\\' : '') . 'job\\' . $name;
         }
 
-        return $this->app->make($name);
+        return $this->app->make($name, [$param], true);
+    }
+
+    public function getResolvedJob()
+    {
+        if (empty($this->instance)) {
+            [$class] = $this->getParsedJob();
+
+            $this->instance = $this->resolve($class, $this->payload('data'));
+        }
+
+        return $this->instance;
     }
 
     /**
@@ -203,32 +239,13 @@ abstract class Job
     }
 
     /**
-     * Process an exception that caused the job to fail.
-     *
-     * @param Exception $e
-     * @return void
-     */
-    public function failed($e)
-    {
-        $this->markAsFailed();
-
-        $payload = $this->payload();
-
-        list($class, $method) = $this->parseJob($payload['job']);
-
-        if (method_exists($this->instance = $this->resolve($class), 'failed')) {
-            $this->instance->failed($payload['data'], $e);
-        }
-    }
-
-    /**
      * Get the number of times to attempt a job.
      *
      * @return int|null
      */
     public function maxTries()
     {
-        return $this->payload()['maxTries'] ?? null;
+        return $this->payload('maxTries');
     }
 
     /**
@@ -238,7 +255,7 @@ abstract class Job
      */
     public function timeout()
     {
-        return $this->payload()['timeout'] ?? null;
+        return $this->payload('timeout');
     }
 
     /**
@@ -248,7 +265,7 @@ abstract class Job
      */
     public function timeoutAt()
     {
-        return $this->payload()['timeoutAt'] ?? null;
+        return $this->payload('timeoutAt');
     }
 
     /**
@@ -258,7 +275,7 @@ abstract class Job
      */
     public function getName()
     {
-        return $this->payload()['job'];
+        return $this->payload('job');
     }
 
     /**
