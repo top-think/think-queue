@@ -60,7 +60,7 @@ class Database extends Connector
     {
         $connection = $db->connect($config['connection'] ?? null);
 
-        return new self($connection, $config['table'], $config['queue'], $config['retry_after'] ?? 60);
+        return new self($connection, $config['table'], $config['queue'], is_null($config['retry_after']) ? $config['retry_after'] : ($config['retry_after'] ?? 60));
     }
 
     public function size($queue = null)
@@ -175,11 +175,13 @@ class Database extends Connector
                 });
 
                 //超时任务重试
-                $expiration = Carbon::now()->subSeconds($this->retryAfter)->getTimestamp();
+                if (!is_null($this->retryAfter)) {
+                    $expiration = Carbon::now()->subSeconds($this->retryAfter)->getTimestamp();
 
-                $query->whereOr(function (Query $query) use ($expiration) {
-                    $query->where('reserve_time', '<=', $expiration);
-                });
+                    $query->whereOr(function (Query $query) use ($expiration) {
+                        $query->where('reserve_time', '<=', $expiration);
+                    });
+                }
             })
             ->order('id', 'asc')
             ->find();

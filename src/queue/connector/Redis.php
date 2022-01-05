@@ -103,7 +103,7 @@ class Redis extends Connector
             }
         };
 
-        return new self($redis, $config['queue'], $config['retry_after'] ?? 60, $config['block_for'] ?? null);
+        return new self($redis, $config['queue'], is_null($config['retry_after']) ? $config['retry_after'] : ($config['retry_after'] ?? 60), $config['block_for'] ?? null);
     }
 
     public function size($queue = null)
