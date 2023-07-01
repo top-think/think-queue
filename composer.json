@@ -21,10 +21,9 @@
             "think\\test\\queue\\": "tests"
         }
     },
-    "minimum-stability": "dev",
     "require": {
         "ext-json": "*",
-        "topthink/framework": "^6.0",
+        "topthink/framework": "^6.0 || ^8.0",
         "symfony/process": "^4.2",
         "nesbot/carbon": "^2.16"
     },
@@ -41,6 +40,6 @@
     "require-dev": {
         "phpunit/phpunit": "^6.2",
         "mockery/mockery": "^1.2",
-        "topthink/think-migration": "^3.0.0"
+        "topthink/think-migration": "^3.0"
     }
 }
