@@ -24,7 +24,7 @@
     "require": {
         "ext-json": "*",
         "topthink/framework": "^6.0 || ^8.0",
-        "symfony/process": "^4.2",
+        "symfony/process": ">=4.2",
         "nesbot/carbon": "^2.16"
     },
     "extra": {
