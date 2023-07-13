@@ -32,14 +32,14 @@ class Sync extends Connector
         $queueJob = $this->resolveJob($this->createPayload($job, $data), $queue);
 
         try {
-            $this->triggerEvent(new JobProcessing($this->connection, $job));
+            $this->triggerEvent(new JobProcessing($this->connection, $queueJob));
 
             $queueJob->fire();
 
-            $this->triggerEvent(new JobProcessed($this->connection, $job));
+            $this->triggerEvent(new JobProcessed($this->connection, $queueJob));
         } catch (Exception | Throwable $e) {
 
-            $this->triggerEvent(new JobFailed($this->connection, $job, $e));
+            $this->triggerEvent(new JobFailed($this->connection, $queueJob, $e));
 
             throw $e;
         }
