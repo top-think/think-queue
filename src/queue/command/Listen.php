@@ -49,12 +49,12 @@ class Listen extends Command
     {
         $connection = $input->getArgument('connection') ?: $this->app->config->get('queue.default');
 
-        $queue   = $input->getOption('queue') ?: $this->app->config->get("queue.connections.{$connection}.queue", 'default');
-        $delay   = $input->getOption('delay');
-        $memory  = $input->getOption('memory');
+        $queue = $input->getOption('queue') ?: $this->app->config->get("queue.connections.{$connection}.queue", 'default');
+        $delay = $input->getOption('delay');
+        $memory = $input->getOption('memory');
         $timeout = $input->getOption('timeout');
-        $sleep   = $input->getOption('sleep');
-        $tries   = $input->getOption('tries');
+        $sleep = $input->getOption('sleep');
+        $tries = $input->getOption('tries');
 
         $this->listener->listen($connection, $queue, $delay, $sleep, $tries, $memory, $timeout);
     }

@@ -71,7 +71,7 @@ class Work extends Command
         if ($input->getOption('once')) {
             $this->worker->runNextJob($connection, $queue, $delay, $sleep, $tries);
         } else {
-            $memory  = $input->getOption('memory');
+            $memory = $input->getOption('memory');
             $timeout = $input->getOption('timeout');
             $this->worker->daemon($connection, $queue, $delay, $sleep, $tries, $memory, $timeout);
         }

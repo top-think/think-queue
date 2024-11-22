@@ -18,7 +18,7 @@ class JobFailed
     public function __construct($connection, $job, $exception)
     {
         $this->connection = $connection;
-        $this->job        = $job;
-        $this->exception  = $exception;
+        $this->job = $job;
+        $this->exception = $exception;
     }
 }

@@ -181,7 +181,7 @@ abstract class Job
      */
     protected function getParsedJob()
     {
-        $job      = $this->payload('job');
+        $job = $this->payload('job');
         $segments = explode('@', $job);
 
         return count($segments) > 1 ? $segments : [$segments[0], 'fire'];

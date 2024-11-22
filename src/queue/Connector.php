@@ -79,23 +79,23 @@ abstract class Connector
     protected function createPlainPayload($job, $data)
     {
         return [
-            'job'      => $job,
+            'job' => $job,
             'maxTries' => null,
-            'timeout'  => null,
-            'data'     => $data,
+            'timeout' => null,
+            'data' => $data,
         ];
     }
 
     protected function createObjectPayload($job)
     {
         return [
-            'job'       => 'think\queue\CallQueuedHandler@call',
-            'maxTries'  => $job->tries ?? null,
-            'timeout'   => $job->timeout ?? null,
+            'job' => 'think\queue\CallQueuedHandler@call',
+            'maxTries' => $job->tries ?? null,
+            'timeout' => $job->timeout ?? null,
             'timeoutAt' => $this->getJobExpiration($job),
-            'data'      => [
+            'data' => [
                 'commandName' => get_class($job),
-                'command'     => serialize(clone $job),
+                'command' => serialize(clone $job),
             ],
         ];
     }
@@ -114,9 +114,9 @@ abstract class Connector
 
     protected function setMeta($payload, $key, $value)
     {
-        $payload       = json_decode($payload, true);
+        $payload = json_decode($payload, true);
         $payload[$key] = $value;
-        $payload       = json_encode($payload);
+        $payload = json_encode($payload);
 
         if (JSON_ERROR_NONE !== json_last_error()) {
             throw new InvalidArgumentException('Unable to create payload: ' . json_last_error_msg());

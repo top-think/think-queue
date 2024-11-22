@@ -36,7 +36,7 @@ class Table extends Command
         // inject the class names appropriate to this migration
         $contents = strtr($contents, [
             'CreateJobsTable' => $className,
-            '{{table}}'       => $table,
+            '{{table}}' => $table,
         ]);
 
         file_put_contents($path, $contents);

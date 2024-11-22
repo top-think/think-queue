@@ -44,7 +44,7 @@ class ListenerTest extends TestCase
         $listener = new Listener(__DIR__);
 
         $process = $listener->makeProcess('connection', 'queue', 1, 3, 0, 2, 3);
-        $escape  = '\\' === DIRECTORY_SEPARATOR ? '"' : '\'';
+        $escape = '\\' === DIRECTORY_SEPARATOR ? '"' : '\'';
 
         $this->assertInstanceOf(Process::class, $process);
         $this->assertEquals(__DIR__, $process->getWorkingDirectory());
@@ -57,7 +57,7 @@ class ListenerTest extends TestCase
         $listener = new Listener(__DIR__);
 
         $process = $listener->makeProcess('connection', 'queue', 1, 3, 0, 2, 3);
-        $escape  = '\\' === DIRECTORY_SEPARATOR ? '"' : '\'';
+        $escape = '\\' === DIRECTORY_SEPARATOR ? '"' : '\'';
 
         $this->assertInstanceOf(Process::class, $process);
         $this->assertEquals(__DIR__, $process->getWorkingDirectory());
@@ -70,7 +70,7 @@ class ListenerTest extends TestCase
         $listener = new Listener(__DIR__);
 
         $process = $listener->makeProcess(null, 'queue', 1, 3, 0, 2, 3);
-        $escape  = '\\' === DIRECTORY_SEPARATOR ? '"' : '\'';
+        $escape = '\\' === DIRECTORY_SEPARATOR ? '"' : '\'';
 
         $this->assertInstanceOf(Process::class, $process);
         $this->assertEquals(__DIR__, $process->getWorkingDirectory());

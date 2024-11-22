@@ -50,9 +50,9 @@ class Database extends Connector
 
     public function __construct(ConnectionInterface $db, $table, $default = 'default', $retryAfter = 60)
     {
-        $this->db         = $db;
-        $this->table      = $table;
-        $this->default    = $default;
+        $this->db = $db;
+        $this->table = $table;
+        $this->default = $default;
         $this->retryAfter = $retryAfter;
     }
 
@@ -95,12 +95,12 @@ class Database extends Connector
         return $this->db->name($this->table)->insertAll(collect((array) $jobs)->map(
             function ($job) use ($queue, $data, $availableAt) {
                 return [
-                    'queue'          => $queue,
-                    'attempts'       => 0,
-                    'reserve_time'   => null,
+                    'queue' => $queue,
+                    'attempts' => 0,
+                    'reserve_time' => null,
                     'available_time' => $availableAt,
-                    'create_time'    => $this->currentTime(),
-                    'payload'        => $this->createPayload($job, $data),
+                    'create_time' => $this->currentTime(),
+                    'payload' => $this->createPayload($job, $data),
                 ];
             }
         )->all());
@@ -131,12 +131,12 @@ class Database extends Connector
     protected function pushToDatabase($queue, $payload, $delay = 0, $attempts = 0)
     {
         return $this->db->name($this->table)->insertGetId([
-            'queue'          => $this->getQueue($queue),
-            'attempts'       => $attempts,
-            'reserve_time'   => null,
+            'queue' => $this->getQueue($queue),
+            'attempts' => $attempts,
+            'reserve_time' => null,
             'available_time' => $this->availableAt($delay),
-            'create_time'    => $this->currentTime(),
-            'payload'        => $payload,
+            'create_time' => $this->currentTime(),
+            'payload' => $payload,
         ]);
     }
 
@@ -200,7 +200,7 @@ class Database extends Connector
             ->where('id', $job->id)
             ->update([
                 'reserve_time' => $job->reserve_time = $this->currentTime(),
-                'attempts'     => ++$job->attempts,
+                'attempts' => ++$job->attempts,
             ]);
 
         return $job;

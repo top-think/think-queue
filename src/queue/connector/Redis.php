@@ -49,10 +49,10 @@ class Redis extends Connector
 
     public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null)
     {
-        $this->redis      = $redis;
-        $this->default    = $default;
+        $this->redis = $redis;
+        $this->default = $default;
         $this->retryAfter = $retryAfter;
-        $this->blockFor   = $blockFor;
+        $this->blockFor = $blockFor;
     }
 
     public static function __make($config)
@@ -74,7 +74,7 @@ class Redis extends Connector
             protected function createClient()
             {
                 $config = $this->config;
-                $func   = $config['persistent'] ? 'pconnect' : 'connect';
+                $func = $config['persistent'] ? 'pconnect' : 'connect';
 
                 $client = new \Redis;
                 $client->$func($config['host'], $config['port'], $config['timeout']);
@@ -213,7 +213,7 @@ class Redis extends Connector
             return $this->blockingPop($queue);
         }
 
-        $job      = $this->redis->lpop($queue);
+        $job = $this->redis->lpop($queue);
         $reserved = false;
 
         if ($job) {
@@ -302,7 +302,7 @@ class Redis extends Connector
     protected function createPayloadArray($job, $data = '')
     {
         return array_merge(parent::createPayloadArray($job, $data), [
-            'id'       => $this->getRandomId(),
+            'id' => $this->getRandomId(),
             'attempts' => 0,
         ]);
     }

@@ -30,10 +30,10 @@ class Database extends Job
 
     public function __construct(App $app, DatabaseQueue $database, $job, $connection, $queue)
     {
-        $this->app        = $app;
-        $this->job        = $job;
-        $this->queue      = $queue;
-        $this->database   = $database;
+        $this->app = $app;
+        $this->job = $job;
+        $this->queue = $queue;
+        $this->database = $database;
         $this->connection = $connection;
     }
 

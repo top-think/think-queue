@@ -22,7 +22,7 @@ class DatabaseConnectorTest extends TestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->db        = m::mock(Db::class);
+        $this->db = m::mock(Db::class);
         $this->connector = new Database($this->db, 'table', 'default');
     }
 
@@ -59,7 +59,7 @@ class DatabaseConnectorTest extends TestCase
     {
         $this->expectException('InvalidArgumentException');
 
-        $job          = new stdClass;
+        $job = new stdClass;
         $job->invalid = "\xc3\x28";
 
         $queue = $this->getMockForAbstractClass(Connector::class);
@@ -100,19 +100,19 @@ class DatabaseConnectorTest extends TestCase
         $query->shouldReceive('insertAll')->once()->andReturnUsing(function ($records) use ($now) {
             $this->assertEquals([
                 [
-                    'queue'        => 'queue',
-                    'payload'      => json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
-                    'attempts'     => 0,
-                    'reserved_at'  => null,
+                    'queue' => 'queue',
+                    'payload' => json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
+                    'attempts' => 0,
+                    'reserved_at' => null,
                     'available_at' => $now->getTimestamp(),
-                    'created_at'   => $now->getTimestamp(),
+                    'created_at' => $now->getTimestamp(),
                 ], [
-                    'queue'        => 'queue',
-                    'payload'      => json_encode(['job' => 'bar', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
-                    'attempts'     => 0,
-                    'reserved_at'  => null,
+                    'queue' => 'queue',
+                    'payload' => json_encode(['job' => 'bar', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
+                    'attempts' => 0,
+                    'reserved_at' => null,
                     'available_at' => $now->getTimestamp(),
-                    'created_at'   => $now->getTimestamp(),
+                    'created_at' => $now->getTimestamp(),
                 ],
             ], $records);
         });

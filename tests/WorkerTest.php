@@ -34,10 +34,10 @@ class WorkerTest extends TestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->queue  = m::mock(Queue::class);
+        $this->queue = m::mock(Queue::class);
         $this->handle = m::spy(Handle::class);
-        $this->event  = m::spy(Event::class);
-        $this->cache  = m::spy(Cache::class);
+        $this->event = m::spy(Event::class);
+        $this->cache = m::spy(Cache::class);
     }
 
     public function testJobCanBeFired()
@@ -80,7 +80,7 @@ class WorkerTest extends TestCase
                 $highJob = new WorkerFakeJob,
                 $secondHighJob = new WorkerFakeJob,
             ],
-            'low'  => [$lowJob = new WorkerFakeJob],
+            'low' => [$lowJob = new WorkerFakeJob],
         ]);
 
         $worker->runNextJob('sync', 'high,low');
@@ -145,7 +145,7 @@ class WorkerTest extends TestCase
     {
         $e = new RuntimeException;
 
-        $job           = new WorkerFakeJob(function ($job) use ($e) {
+        $job = new WorkerFakeJob(function ($job) use ($e) {
             // In normal use this would be incremented by being popped off the queue
             $job->attempts++;
 
@@ -319,16 +319,16 @@ class Worker extends \think\queue\Worker
 class WorkerFakeJob
 {
 
-    public $fired    = false;
+    public $fired = false;
     public $callback;
-    public $deleted  = false;
+    public $deleted = false;
     public $releaseAfter;
     public $released = false;
     public $maxTries;
     public $timeoutAt;
     public $attempts = 0;
     public $failedWith;
-    public $failed   = false;
+    public $failed = false;
     public $connectionName;
 
     public function __construct($callback = null)

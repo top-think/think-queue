@@ -21,7 +21,7 @@ class Database extends FailedJob
 
     public function __construct(Db $db, $table)
     {
-        $this->db    = $db;
+        $this->db = $db;
         $this->table = $table;
     }
 

@@ -36,7 +36,7 @@ class FailedTable extends Command
         // inject the class names appropriate to this migration
         $contents = strtr($contents, [
             'CreateFailedJobsTable' => $className,
-            '{{table}}'             => $table,
+            '{{table}}' => $table,
         ]);
 
         file_put_contents($path, $contents);

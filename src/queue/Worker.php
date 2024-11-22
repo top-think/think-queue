@@ -54,10 +54,10 @@ class Worker
 
     public function __construct(Queue $queue, Event $event, Handle $handle, ?Cache $cache = null)
     {
-        $this->queue  = $queue;
-        $this->event  = $event;
+        $this->queue = $queue;
+        $this->event = $event;
         $this->handle = $handle;
-        $this->cache  = $cache;
+        $this->cache = $cache;
     }
 
     /**

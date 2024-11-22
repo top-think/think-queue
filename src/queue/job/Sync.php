@@ -25,10 +25,10 @@ class Sync extends Job
 
     public function __construct(App $app, $job, $connection, $queue)
     {
-        $this->app        = $app;
+        $this->app = $app;
         $this->connection = $connection;
-        $this->queue      = $queue;
-        $this->job        = $job;
+        $this->queue = $queue;
+        $this->job = $job;
     }
 
     /**
