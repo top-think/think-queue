@@ -45,9 +45,9 @@ class RedisStream extends RedisQueue
      */
     protected $groups = [];
 
-    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $group = 'think-queue', $consumer = null)
+    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $lock = true, $lockTtl = 3600, $group = 'think-queue', $consumer = null)
     {
-        parent::__construct($redis, $default, $retryAfter, $blockFor);
+        parent::__construct($redis, $default, $retryAfter, $blockFor, $lock, $lockTtl);
 
         $this->group    = $group;
         $this->consumer = $consumer ?: (gethostname() ?: 'worker') . '-' . getmypid();
@@ -66,6 +66,8 @@ class RedisStream extends RedisQueue
             $config['queue'],
             $config['retry_after'] ?? 60,
             $config['block_for'] ?? null,
+            $config['lock'] ?? true,
+            $config['lock_ttl'] ?? 3600,
             $config['group'] ?? 'think-queue',
             $config['consumer'] ?? ''
         );
@@ -101,10 +103,33 @@ class RedisStream extends RedisQueue
         // 优先认领超过 retry_after 仍未确认的消息
         // 注意传给 Job 的必须是原始队列名，Job 内部会自行再加前缀
         if (!empty($job = $this->claimPending($stream, $queue))) {
-            return $job;
+            return $this->withLock($prefixed, $job);
         }
 
-        return $this->readNewJob($stream, $queue);
+        return $this->withLock($prefixed, $this->readNewJob($stream, $queue));
+    }
+
+    /**
+     * 尝试获取任务幂等锁后再返回 Job
+     *
+     * 若锁被其他 worker 持有（同一任务因执行时长超过 retry_after 被重复投递），
+     * 跳过本次投递避免重复执行；消息仍保留在 PEL 中，由持有者完成或锁过期后正常流转。
+     *
+     * @param string $prefixed
+     * @param RedisStreamJob|null $job
+     * @return RedisStreamJob|null
+     */
+    protected function withLock($prefixed, $job)
+    {
+        if (empty($job)) {
+            return null;
+        }
+
+        if (!$this->acquireJobLock($prefixed, $job->getJobId())) {
+            return null;
+        }
+
+        return $job;
     }
 
     /**
@@ -244,6 +269,8 @@ class RedisStream extends RedisQueue
 
         $this->redis->xAck($stream, $this->group, [$entryId]);
         $this->redis->xDel($stream, [$entryId]);
+
+        $this->releaseJobLock($this->getQueue($queue), $job->getJobId());
     }
 
     /**

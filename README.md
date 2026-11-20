@@ -58,6 +58,8 @@ PERSISTENT = false
 | redis.persistent | REDIS_PERSISTENT | false |
 | redis.retry_after | QUEUE_REDIS_RETRY_AFTER | 60 |
 | redis.block_for | QUEUE_REDIS_BLOCK_FOR | null |
+| redis.lock | QUEUE_REDIS_LOCK | true |
+| redis.lock_ttl | QUEUE_REDIS_LOCK_TTL | 3600 |
 | redis.group | QUEUE_REDIS_GROUP | think-queue |
 | redis.consumer | QUEUE_REDIS_CONSUMER | (空，自动生成) |
 | failed.type | QUEUE_FAILED_DRIVER | none |
@@ -80,6 +82,8 @@ PERSISTENT = false
     'persistent' => false,
     'retry_after' => 60,     //任务执行超过该秒数未被确认，将被重新投递
     'block_for'  => null,    //pop时最长阻塞秒数，为null表示不阻塞
+    'lock'       => true,    //任务幂等锁：防止执行时长超过retry_after被重复投递的任务被多个worker同时执行
+    'lock_ttl'   => 3600,    //幂等锁TTL(秒)，应大于最长任务执行时长；worker崩溃后任务等待该时长才能被重新认领
 
     //以下为 mode=stream 专用配置
     'group'      => 'think-queue',  //消费者组名称
@@ -92,6 +96,17 @@ PERSISTENT = false
 - 消息通过 Redis Stream + 消费者组投递，支持消息的待处理（PEL）语义，消费失败或超时（`retry_after`）后消息会被重新投递；重试次数由消费者组的投递次数 + release 时固化的尝试基数记录，保证 maxTries 语义正确
 - 延迟任务复用有序集合（`{queues:xxx}:delayed`），到期后自动迁移到 Stream
 - 切换 mode 不影响已有延迟任务的消费
+
+### 任务幂等锁（lock）
+
+默认开启。任务执行时长超过 `retry_after` 时，消息会被重新投递给其他 worker，导致同一任务被多个进程同时执行。开启幂等锁后，pop 到已被其他 worker 处理中的同一任务（按 payload 中的任务 id 判定）会直接跳过本次投递，避免重复执行。
+
+使用约束：
+
+- `lock_ttl` 应大于最长任务执行时长，否则锁过期后仍可能重复执行
+- worker 崩溃时，其锁定的任务需等待 `lock_ttl` 过期后才能被重新认领
+- list 模式下被跳过的重复投递会被直接丢弃（任务至少执行一次）；stream 模式下消息保留在 PEL 中，持有者完成后正常删除
+- 可通过 `QUEUE_REDIS_LOCK=false` 关闭（关闭后请务必保证 `retry_after` > 最长任务时长）
 
 
 ## 创建任务类

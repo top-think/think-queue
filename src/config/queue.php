@@ -45,6 +45,10 @@ return [
             'retry_after' => (int) env('QUEUE_REDIS_RETRY_AFTER', 60),
             // pop 时最长阻塞秒数，为空表示不阻塞
             'block_for' => env('QUEUE_REDIS_BLOCK_FOR'),
+            // 任务幂等锁：开启后，执行时长超过 retry_after 被重复投递的任务不会被多个 worker 同时执行
+            'lock'      => (bool) env('QUEUE_REDIS_LOCK', true),
+            // 幂等锁 TTL（秒），应大于最长任务执行时长；worker 崩溃后任务等待该时长才能被重新认领
+            'lock_ttl'  => (int) env('QUEUE_REDIS_LOCK_TTL', 3600),
             // stream 模式专用：消费者组名称
             'group'     => env('QUEUE_REDIS_GROUP', 'think-queue'),
             // stream 模式专用：消费者名称，为空时自动按 主机名-进程号 生成
