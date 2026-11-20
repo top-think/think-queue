@@ -69,14 +69,22 @@ class Redis extends Connector
      */
     protected $lockedJobs = [];
 
-    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $lock = true, $lockTtl = 3600)
+    /**
+     * 创建连接时使用的配置（供需要独立连接的组件复用，如调度器的订阅连接）
+     *
+     * @var array
+     */
+    protected $clientConfig = [];
+
+    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $lock = true, $lockTtl = 3600, $clientConfig = [])
     {
-        $this->redis      = $redis;
-        $this->default    = $default;
-        $this->retryAfter = $retryAfter;
-        $this->blockFor   = $blockFor;
-        $this->lock       = $lock;
-        $this->lockTtl    = $lockTtl;
+        $this->redis        = $redis;
+        $this->default      = $default;
+        $this->retryAfter   = $retryAfter;
+        $this->blockFor     = $blockFor;
+        $this->lock         = $lock;
+        $this->lockTtl      = $lockTtl;
+        $this->clientConfig = $clientConfig ?: [];
     }
 
     public static function __make($config)
@@ -93,7 +101,8 @@ class Redis extends Connector
             $config['retry_after'] ?? 60,
             $config['block_for'] ?? null,
             $config['lock'] ?? true,
-            $config['lock_ttl'] ?? 3600
+            $config['lock_ttl'] ?? 3600,
+            $config
         );
     }
 

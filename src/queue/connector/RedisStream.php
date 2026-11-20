@@ -23,7 +23,13 @@ use think\queue\job\RedisStream as RedisStreamJob;
  * 使用 Redis Stream + 消费者组实现，消息投递语义由 PEL（待处理列表）保证，
  * 重试次数通过消费者组统计的消息投递次数（deliveries）记录。
  *
- * 延迟任务仍然复用有序集合（{queues:xxx}:delayed），到期后迁移到 Stream。
+ * 延迟任务采用 ZSET + HASH 组合存储：
+ * - {queues:xxx}:delayed       ZSET，member 为任务 job_id，score 为计划执行的 Unix 毫秒时间戳
+ * - {queues:xxx}:delayed:data  HASH，field 为任务 job_id，value 为任务 payload JSON
+ * - {queues:xxx}:delayed:wake  Pub/Sub 频道，生产者写入延迟任务后发布唤醒通知（仅用于唤醒，不作为可靠性依据）
+ *
+ * 到期任务由调度器（queue:scheduler）或 worker pop() 通过 Lua 脚本原子迁移到 Stream，
+ * 之后完全交由现有 Stream 消费者组机制处理。
  */
 class RedisStream extends RedisQueue
 {
@@ -40,17 +46,24 @@ class RedisStream extends RedisQueue
     protected $consumer;
 
     /**
+     * 单次迁移到期任务的数量上限
+     * @var int
+     */
+    protected $schedulerBatch = 100;
+
+    /**
      * 已确认创建过消费者组的 Stream
      * @var array
      */
     protected $groups = [];
 
-    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $lock = true, $lockTtl = 3600, $group = 'think-queue', $consumer = null)
+    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $lock = true, $lockTtl = 3600, $group = 'think-queue', $consumer = null, $schedulerBatch = 100, $clientConfig = [])
     {
-        parent::__construct($redis, $default, $retryAfter, $blockFor, $lock, $lockTtl);
+        parent::__construct($redis, $default, $retryAfter, $blockFor, $lock, $lockTtl, $clientConfig);
 
-        $this->group    = $group;
-        $this->consumer = $consumer ?: (gethostname() ?: 'worker') . '-' . getmypid();
+        $this->group          = $group;
+        $this->consumer       = $consumer ?: (gethostname() ?: 'worker') . '-' . getmypid();
+        $this->schedulerBatch = max(1, (int) $schedulerBatch);
     }
 
     public static function __make($config)
@@ -69,7 +82,9 @@ class RedisStream extends RedisQueue
             $config['lock'] ?? true,
             $config['lock_ttl'] ?? 3600,
             $config['group'] ?? 'think-queue',
-            $config['consumer'] ?? ''
+            $config['consumer'] ?? '',
+            $config['scheduler']['batch'] ?? 100,
+            $config
         );
     }
 
@@ -133,30 +148,41 @@ class RedisStream extends RedisQueue
     }
 
     /**
-     * 迁移到期任务到 Stream
+     * 迁移到期任务到 Stream（Lua 原子操作）
      *
-     * @param string $from
-     * @param string $to
-     * @param bool $attempt
+     * 在一个 Lua 脚本内完成「查询到期任务 → 写入 Stream → 清理 ZSET/HASH」，
+     * 多个调度器/worker 并发调用时由 Redis 单线程执行保证同一条任务只会被迁移一次。
+     *
+     * 任务先写入 Stream 再移除时间索引，脚本整体原子执行，不存在迁移中途丢失的窗口；
+     * 若 HASH 中 payload 缺失（异常数据），同样移除 ZSET 索引避免任务永久滞留。
+     *
+     * @param string $from 延迟任务 ZSET 键名（{queues:xxx}:delayed）
+     * @param string $to   目标 Stream 键名
+     * @param bool $attempt 兼容保留参数（list 驱动签名一致）
+     * @return int 本次迁移的任务数量
      */
     public function migrateExpiredJobs($from, $to, $attempt = true)
     {
-        $this->redis->watch($from);
+        $script = <<<'LUA'
+local ids = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, tonumber(ARGV[2]))
+for _, id in ipairs(ids) do
+    local payload = redis.call('HGET', KEYS[2], id)
+    if payload then
+        redis.call('XADD', KEYS[3], '*', 'job', payload)
+        redis.call('HDEL', KEYS[2], id)
+    end
+    redis.call('ZREM', KEYS[1], id)
+end
+return #ids
+LUA;
 
-        $jobs = $this->redis->zRangeByScore($from, '-inf', $this->currentTime());
-
-        if (!empty($jobs)) {
-            $this->transaction(function () use ($from, $to, $jobs) {
-
-                $this->redis->zRemRangeByRank($from, 0, count($jobs) - 1);
-
-                foreach ($jobs as $job) {
-                    $this->redis->xAdd($to, '*', ['job' => $job]);
-                }
-            });
-        }
-
-        $this->redis->unwatch();
+        return (int) $this->redis->eval($script, [
+            $from,
+            $from . ':data',
+            $to,
+            $this->currentTimeMs(),
+            $this->schedulerBatch,
+        ], 3);
     }
 
     /**
@@ -281,23 +307,196 @@ class RedisStream extends RedisQueue
      *
      * @param string $queue
      * @param RedisStreamJob $job
-     * @param int $delay
+     * @param int $delay 延迟秒数
      * @return void
      */
     public function deleteAndRelease($queue, $job, $delay)
     {
+        $prefixed = $this->getQueue($queue);
+
         $this->deleteReserved($queue, $job);
 
         // 重新入队前把尝试次数固化进 payload
         $payload = json_decode($job->getRawBody(), true);
         $payload['attempts'] = $job->attempts();
-        $payload = json_encode($payload);
+        $jobId    = $payload['id'] ?? null;
+        $payload  = json_encode($payload);
 
-        $this->redis->zAdd(
+        if (empty($jobId)) {
+            return;
+        }
+
+        $this->transaction(function () use ($prefixed, $jobId, $delay, $payload) {
+            $this->redis->zAdd($prefixed . ':delayed', $this->availableAtMs($delay), $jobId);
+            $this->redis->hSet($prefixed . ':delayed:data', $jobId, $payload);
+        });
+
+        $this->publishWake($prefixed);
+    }
+
+    /**
+     * 延迟到指定的毫秒时间戳执行
+     *
+     * @param int $timestampMs 计划执行的 Unix 毫秒时间戳
+     * @param mixed $job
+     * @param mixed $data
+     * @param string|null $queue
+     * @return string|null 任务 job_id
+     */
+    public function laterAtMs($timestampMs, $job, $data = '', $queue = null)
+    {
+        return $this->laterRawAtMs((int) $timestampMs, $this->createPayload($job, $data), $queue);
+    }
+
+    public function laterRaw($delay, $payload, $queue = null, array $options = [])
+    {
+        return $this->laterRawAtMs($this->availableAtMs($delay), $payload, $queue);
+    }
+
+    /**
+     * 按毫秒时间戳写入延迟任务
+     *
+     * ZSET 仅保存时间索引（member = job_id，score = 毫秒时间戳），
+     * 任务 payload 保存在独立 HASH 中；写入后发布唤醒通知，
+     * 保存相同 job_id 的任务会覆盖原计划时间，天然支持重复提交去重。
+     *
+     * @param int $timestampMs
+     * @param string $payload
+     * @param string|null $queue
+     * @return string|null 任务 job_id
+     */
+    protected function laterRawAtMs($timestampMs, $payload, $queue = null)
+    {
+        $prefixed = $this->getQueue($queue);
+        $jobId    = $this->getPayloadJobId($payload);
+
+        if (empty($jobId)) {
+            return null;
+        }
+
+        // ZSET 时间索引与 HASH 任务数据在事务内写入，保证两者一致
+        $this->transaction(function () use ($prefixed, $jobId, $timestampMs, $payload) {
+            $this->redis->zAdd($prefixed . ':delayed', $timestampMs, $jobId);
+            $this->redis->hSet($prefixed . ':delayed:data', $jobId, $payload);
+        });
+
+        $this->publishWake($prefixed);
+
+        return $jobId;
+    }
+
+    /**
+     * 获取延迟集合中最早到期（或唯一）的任务
+     *
+     * @param string|null $queue
+     * @return array|null [jobId, 计划执行的毫秒时间戳]，集合为空时返回 null
+     */
+    public function earliestDelayedJob($queue = null)
+    {
+        $result = $this->redis->zRangeByScore(
             $this->getQueue($queue) . ':delayed',
-            $this->availableAt($delay),
-            $payload
+            '-inf',
+            '+inf',
+            ['withscores' => true, 'limit' => [0, 1]]
         );
+
+        if (empty($result)) {
+            return null;
+        }
+
+        $jobId = array_key_first($result);
+
+        return [$jobId, (int) $result[$jobId]];
+    }
+
+    /**
+     * 等待延迟任务的唤醒通知
+     *
+     * 使用独立的订阅连接订阅唤醒频道，读超时即为兜底定时器：
+     * - 等待期内收到唤醒通知：立即返回 true，由调用方重新查询最早任务并调整等待
+     * - 等待期内无通知（读超时）：返回 false，作为 Pub/Sub 丢消息、断线重连期间的定期兜底检查
+     *
+     * @param string|null $queue
+     * @param float $timeoutSeconds 最长等待秒数
+     * @return bool 是否收到了唤醒通知
+     */
+    public function waitForWake($queue, $timeoutSeconds)
+    {
+        $timeoutSeconds = max(0.05, (float) $timeoutSeconds);
+
+        // 手工构造（未传入连接配置）时无法建立订阅连接，退化为纯定时等待
+        if (empty($this->clientConfig)) {
+            usleep((int) ($timeoutSeconds * 1000000));
+
+            return false;
+        }
+
+        $client = new \Redis;
+        $this->connectSubscriber($client, $this->clientConfig);
+        $client->setOption(\Redis::OPT_READ_TIMEOUT, $timeoutSeconds);
+
+        try {
+            $client->subscribe([$this->wakeChannel($queue)], function () {
+                // 唤醒通知仅用于打断等待，内容不承载任务数据
+            });
+
+            return true;
+        } catch (RedisException $e) {
+            // 读超时属于正常兜底路径
+            return false;
+        } finally {
+            try {
+                $client->close();
+            } catch (\Throwable $e) {
+                // 忽略关闭时的连接异常
+            }
+        }
+    }
+
+    /**
+     * 建立订阅用的 Redis 连接
+     *
+     * @param \Redis $client
+     * @param array $config
+     * @return void
+     */
+    protected function connectSubscriber($client, $config)
+    {
+        $client->connect($config['host'], $config['port'], (int) $config['timeout']);
+
+        if ('' != $config['password']) {
+            $client->auth($config['password']);
+        }
+
+        if (0 != $config['select']) {
+            $client->select($config['select']);
+        }
+    }
+
+    /**
+     * 发布延迟任务唤醒通知
+     *
+     * @param string|null $queue
+     * @return void
+     */
+    public function publishWake($queue = null)
+    {
+        try {
+            $this->redis->publish($this->wakeChannel($queue), '1');
+        } catch (RedisException $e) {
+            // 唤醒通知发布失败不影响任务写入，由调度器的兜底检查覆盖
+        }
+    }
+
+    /**
+     * 延迟任务唤醒频道名
+     *
+     * @param string|null $queue
+     * @return string
+     */
+    public function wakeChannel($queue = null)
+    {
+        return $this->getQueue($queue) . ':delayed:wake';
     }
 
     /**
