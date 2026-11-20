@@ -576,14 +576,17 @@ LUA;
 
         $timeout = 0;
         if ($count > 0 && null !== $this->retryAfter) {
-            $entries = $this->redis->xPending(
+            // 注意：phpredis 6.3 的 xPending 传 idle 参数会返回错误响应并破坏连接，
+            // 因此使用 rawCommand 显式发送 XPENDING IDLE 命令
+            $entries = $this->redis->rawCommand(
+                'XPENDING',
                 $streamKey,
                 $this->group,
+                'IDLE',
+                (int) ($this->retryAfter * 1000),
                 '-',
                 '+',
-                500,
-                null,
-                $this->retryAfter * 1000
+                500
             );
             if (is_array($entries)) {
                 $timeout = count($entries);
@@ -676,10 +679,12 @@ LUA;
      */
     public function lockCount($queue = null, $maxScan = 2000)
     {
+        // scan 依赖游标引用，必须使用原生客户端（包装类 __call 按值转发会丢失引用）
+        $client   = method_exists($this->redis, 'getClient') ? $this->redis->getClient() : $this->redis;
         $iterator = null;
         $count    = 0;
 
-        while (false !== ($keys = $this->redis->scan($iterator, $this->getQueue($queue) . ':lock:*', 500))) {
+        while (false !== ($keys = $client->scan($iterator, $this->getQueue($queue) . ':lock:*', 500))) {
             $count += count($keys);
             if (0 === $iterator || $count >= $maxScan) {
                 break;

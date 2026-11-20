@@ -136,6 +136,13 @@ class Redis extends Connector
                 return $client;
             }
 
+            public function getClient()
+            {
+                // 返回底层原生 \Redis 客户端
+                // 需要引用传参的方法（如 scan 游标扫描）必须绕过 __call（按值转发会丢失引用）
+                return $this->client;
+            }
+
             public function __call($name, $arguments)
             {
                 try {

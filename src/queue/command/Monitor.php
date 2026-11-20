@@ -272,6 +272,10 @@ class Monitor extends Command
      */
     protected function failedCount()
     {
+        if (null === $this->app) {
+            return null;
+        }
+
         try {
             $config = $this->app->config->get('queue.failed', []);
 
