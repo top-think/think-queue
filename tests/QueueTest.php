@@ -13,7 +13,7 @@ class QueueTest extends TestCase
     /** @var Queue */
     protected $queue;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
         $this->queue = new Queue($this->app);

@@ -31,7 +31,7 @@ class WorkerTest extends TestCase
     /** @var Queue|MockInterface */
     protected $queue;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
         $this->queue  = m::mock(Queue::class);

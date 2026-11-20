@@ -19,7 +19,7 @@ class DatabaseConnectorTest extends TestCase
     /** @var Db|MockInterface */
     protected $db;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
         $this->db        = m::mock(Db::class);
@@ -35,7 +35,7 @@ class DatabaseConnectorTest extends TestCase
             $this->assertEquals(json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]), $array['payload']);
             $this->assertEquals(0, $array['attempts']);
             $this->assertNull($array['reserved_at']);
-            $this->assertInternalType('int', $array['available_at']);
+            $this->assertIsInt($array['available_at']);
         });
         $this->connector->push('foo', ['data']);
     }
@@ -49,7 +49,7 @@ class DatabaseConnectorTest extends TestCase
             $this->assertEquals(json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]), $array['payload']);
             $this->assertEquals(0, $array['attempts']);
             $this->assertNull($array['reserved_at']);
-            $this->assertInternalType('int', $array['available_at']);
+            $this->assertIsInt($array['available_at']);
         });
 
         $this->connector->later(10, 'foo', ['data']);

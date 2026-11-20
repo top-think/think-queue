@@ -11,12 +11,12 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase
     /** @var App|MockInterface */
     protected $app;
 
-    public function tearDown()
+    public function tearDown(): void
     {
         m::close();
     }
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->app = m::mock(App::class)->makePartial();
     }
