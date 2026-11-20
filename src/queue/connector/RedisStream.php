@@ -76,13 +76,8 @@ class RedisStream extends RedisQueue
         $queue  = $this->getQueue($queue);
         $stream = $queue . ':stream';
 
-        $this->ensureGroup($stream);
-
-        $pending = $this->redis->xPending($stream, $this->group);
-
-        return $this->redis->xLen($stream)
-            + $this->redis->zCard($queue . ':delayed')
-            + ($pending['count'] ?? $pending[0] ?? 0);
+        // Stream 内的条目包含已投递但未确认（pending）的消息，因此无需再单独累加 pending 数量
+        return $this->redis->xLen($stream) + $this->redis->zCard($queue . ':delayed');
     }
 
     public function pushRaw($payload, $queue = null, array $options = [])
@@ -96,14 +91,15 @@ class RedisStream extends RedisQueue
 
     public function pop($queue = null)
     {
-        $queue  = $this->getQueue($queue);
-        $stream = $queue . ':stream';
+        $prefixed = $this->getQueue($queue);
+        $stream   = $prefixed . ':stream';
 
         $this->ensureGroup($stream);
 
-        $this->migrateExpiredJobs($queue . ':delayed', $stream);
+        $this->migrateExpiredJobs($prefixed . ':delayed', $stream);
 
         // 优先认领超过 retry_after 仍未确认的消息
+        // 注意传给 Job 的必须是原始队列名，Job 内部会自行再加前缀
         if (!empty($job = $this->claimPending($stream, $queue))) {
             return $job;
         }
@@ -141,6 +137,8 @@ class RedisStream extends RedisQueue
     /**
      * 认领投递超时（idle >= retry_after）的待处理消息
      *
+     * 分页扫描待处理列表（按 ID 升序，最旧优先），避免 pending 堆积时漏认领。
+     *
      * @param string $stream
      * @param string $queue
      * @return RedisStreamJob|null
@@ -151,28 +149,54 @@ class RedisStream extends RedisQueue
             return null;
         }
 
-        $minIdle = $this->retryAfter * 1000;
+        $minIdle  = $this->retryAfter * 1000;
+        $pageSize = 100;
+        $lastId   = null;
 
-        $entries = $this->redis->xPending($stream, $this->group, '-', '+', 100);
+        while (true) {
+            $entries = $this->redis->xPending($stream, $this->group, null === $lastId ? '-' : $lastId, '+', $pageSize);
 
-        foreach ($entries as $entry) {
-            // 兼容 phpredis 不同版本的返回格式
-            $id         = is_array($entry) ? ($entry['id'] ?? $entry[0] ?? null) : null;
-            $idle       = $entry['idle'] ?? $entry[2] ?? 0;
-            $deliveries = $entry['deliveries'] ?? $entry[3] ?? 1;
-
-            if (empty($id) || $idle < $minIdle) {
-                continue;
+            if (empty($entries)) {
+                return null;
             }
 
-            $claimed = $this->redis->xClaim($stream, $this->group, $this->consumer, $minIdle, [$id]);
+            $count = count($entries);
+            // XPENDING 范围起始为包含语义，跳过上一页末尾已扫描过的消息
+            $skip = null !== $lastId;
 
-            foreach ($claimed as $entryId => $fields) {
-                return $this->newJob($fields['job'], $entryId, $deliveries + 1, $queue);
+            foreach ($entries as $entry) {
+                // 兼容 phpredis 不同版本的返回格式
+                $id         = is_array($entry) ? ($entry['id'] ?? $entry[0] ?? null) : null;
+                $idle       = $entry['idle'] ?? $entry[2] ?? 0;
+                $deliveries = $entry['deliveries'] ?? $entry[3] ?? 1;
+
+                if ($skip) {
+                    $skip = false;
+                    continue;
+                }
+
+                if (empty($id)) {
+                    continue;
+                }
+
+                $lastId = $id;
+
+                if ($idle < $minIdle) {
+                    continue;
+                }
+
+                $claimed = $this->redis->xClaim($stream, $this->group, $this->consumer, $minIdle, [$id]);
+
+                foreach ($claimed as $entryId => $fields) {
+                    // XCLAIM 后投递次数 +1，本次为第 deliveries+1 次投递
+                    return $this->newJob($fields['job'], $entryId, $deliveries + 1, $queue);
+                }
+            }
+
+            if ($count < $pageSize) {
+                return null;
             }
         }
-
-        return null;
     }
 
     /**
@@ -184,9 +208,12 @@ class RedisStream extends RedisQueue
      */
     protected function readNewJob($stream, $queue)
     {
-        $block = $this->blockFor ? $this->blockFor * 1000 : -1;
-
-        $result = $this->redis->xReadGroup($this->group, $this->consumer, [$stream => '>'], 1, $block);
+        if (!empty($this->blockFor)) {
+            // BLOCK 为毫秒，phpredis 不允许负数，因此不阻塞时不能传 -1
+            $result = $this->redis->xReadGroup($this->group, $this->consumer, [$stream => '>'], 1, $this->blockFor * 1000);
+        } else {
+            $result = $this->redis->xReadGroup($this->group, $this->consumer, [$stream => '>'], 1);
+        }
 
         if (!empty($result)) {
             foreach (reset($result) as $entryId => $fields) {
@@ -222,6 +249,9 @@ class RedisStream extends RedisQueue
     /**
      * 删除保留任务并重新发布（放入延迟集合）
      *
+     * release 会把消息移出 PEL，消费者组的投递次数随之清零，
+     * 因此必须把当前已尝试次数写入 payload 作为基数，避免 maxTries 失效导致无限重试。
+     *
      * @param string $queue
      * @param RedisStreamJob $job
      * @param int $delay
@@ -231,10 +261,15 @@ class RedisStream extends RedisQueue
     {
         $this->deleteReserved($queue, $job);
 
+        // 重新入队前把尝试次数固化进 payload
+        $payload = json_decode($job->getRawBody(), true);
+        $payload['attempts'] = $job->attempts();
+        $payload = json_encode($payload);
+
         $this->redis->zAdd(
             $this->getQueue($queue) . ':delayed',
             $this->availableAt($delay),
-            $job->getRawBody()
+            $payload
         );
     }
 

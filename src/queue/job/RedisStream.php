@@ -13,7 +13,6 @@ namespace think\queue\job;
 
 use think\App;
 use think\queue\connector\RedisStream as RedisStreamQueue;
-use think\queue\Job;
 
 class RedisStream extends Redis
 {
@@ -25,7 +24,7 @@ class RedisStream extends Redis
     protected $redis;
 
     /**
-     * The number of times the job has been delivered.
+     * The number of times the current Stream entry has been delivered.
      * @var int
      */
     protected $deliveryAttempts;
@@ -39,10 +38,14 @@ class RedisStream extends Redis
 
     /**
      * Get the number of times the job has been attempted.
+     *
+     * payload 中的 attempts 是此前 release 时固化的尝试基数，
+     * deliveryAttempts 是当前 Stream 条目的投递次数（PEL 统计）。
+     *
      * @return int
      */
     public function attempts()
     {
-        return $this->deliveryAttempts;
+        return $this->payload('attempts') + $this->deliveryAttempts;
     }
 }

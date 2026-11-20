@@ -89,7 +89,7 @@ PERSISTENT = false
 
 `stream` 模式说明：
 
-- 消息通过 Redis Stream + 消费者组投递，支持消息的待处理（PEL）语义，消费失败或超时（`retry_after`）后消息会被重新投递，重试次数由消费者组的投递次数记录
+- 消息通过 Redis Stream + 消费者组投递，支持消息的待处理（PEL）语义，消费失败或超时（`retry_after`）后消息会被重新投递；重试次数由消费者组的投递次数 + release 时固化的尝试基数记录，保证 maxTries 语义正确
 - 延迟任务复用有序集合（`{queues:xxx}:delayed`），到期后自动迁移到 Stream
 - 切换 mode 不影响已有延迟任务的消费
 

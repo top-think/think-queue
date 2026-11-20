@@ -28,6 +28,9 @@
         "symfony/process": "^5.4 || ^6.4 || ^7.0 || ^8.0",
         "nesbot/carbon": "^2.16 || ^3.0"
     },
+    "suggest": {
+        "ext-redis": "Required to use the redis connector (Redis Stream mode requires Redis server 5.0+)"
+    },
     "extra": {
         "think": {
             "services": [
