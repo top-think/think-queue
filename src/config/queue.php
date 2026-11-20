@@ -53,6 +53,13 @@ return [
             'group'     => env('QUEUE_REDIS_GROUP', 'think-queue'),
             // stream 模式专用：消费者名称，为空时自动按 主机名-进程号 生成
             'consumer'  => env('QUEUE_REDIS_CONSUMER', ''),
+            // stream 模式专用：延迟任务调度器
+            // 单次迁移到期任务的数量上限（Lua 原子迁移，避免一次性加载全部到期任务）
+            'scheduler' => [
+                'batch' => (int) env('QUEUE_REDIS_SCHEDULER_BATCH', 100),
+                // 无唤醒通知时的定期兜底检查间隔（秒）
+                'interval' => (int) env('QUEUE_REDIS_SCHEDULER_INTERVAL', 10),
+            ],
         ],
     ],
     'failed'      => [

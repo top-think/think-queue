@@ -12,6 +12,7 @@ use think\queue\command\Listen;
 use think\queue\command\ListFailed;
 use think\queue\command\Restart;
 use think\queue\command\Retry;
+use think\queue\command\Scheduler;
 use think\queue\command\Table;
 use think\queue\command\Work;
 
@@ -42,6 +43,7 @@ class Service extends \think\Service
             ListFailed::class,
             Retry::class,
             Work::class,
+            Scheduler::class,
             Restart::class,
             Listen::class,
             FailedTable::class,

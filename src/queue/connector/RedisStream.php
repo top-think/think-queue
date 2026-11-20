@@ -386,6 +386,39 @@ LUA;
     }
 
     /**
+     * 设置单次迁移到期任务的数量上限
+     *
+     * @param int $batch
+     * @return void
+     */
+    public function setSchedulerBatch($batch)
+    {
+        $this->schedulerBatch = max(1, (int) $batch);
+    }
+
+    /**
+     * 延迟任务时间索引 ZSET 键名
+     *
+     * @param string|null $queue
+     * @return string
+     */
+    public function delayedKey($queue = null)
+    {
+        return $this->getQueue($queue) . ':delayed';
+    }
+
+    /**
+     * Stream 队列键名
+     *
+     * @param string|null $queue
+     * @return string
+     */
+    public function streamKey($queue = null)
+    {
+        return $this->getQueue($queue) . ':stream';
+    }
+
+    /**
      * 获取延迟集合中最早到期（或唯一）的任务
      *
      * @param string|null $queue
