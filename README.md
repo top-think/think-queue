@@ -1,8 +1,8 @@
-# think-queue-lts for ThinkPHP8
+# think-queue for ThinkPHP8
 
 ## 安装
 
-> composer require tobycroft/think-queue-lts
+> composer require topthink/think-queue
 
 ## 配置
 
