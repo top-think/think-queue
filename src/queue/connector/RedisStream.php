@@ -331,7 +331,8 @@ LUA;
             $this->redis->hSet($prefixed . ':delayed:data', $jobId, $payload);
         });
 
-        $this->publishWake($prefixed);
+        // 注意传入原始队列名，publishWake 内部会自行加前缀
+        $this->publishWake($queue);
     }
 
     /**
@@ -380,7 +381,8 @@ LUA;
             $this->redis->hSet($prefixed . ':delayed:data', $jobId, $payload);
         });
 
-        $this->publishWake($prefixed);
+        // 注意传入原始队列名，publishWake 内部会自行加前缀
+        $this->publishWake($queue);
 
         return $jobId;
     }
