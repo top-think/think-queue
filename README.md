@@ -20,22 +20,48 @@
 
 配置文件中的每一项都支持通过 `.env`（或系统环境变量）覆盖，安装后无需修改配置文件即可完成部署。
 
-对应规则：`Env::get('queue.redis.host')` 读取 `.env` 中 `[QUEUE]` 段的 `REDIS_HOST`，即：
+Redis 连接信息（`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD` 等）与缓存（`cache.php`）共用同一组环境变量，一处配置两边生效；队列特有参数使用 `QUEUE_*` 前缀：
 
 ```bash
 [QUEUE]
-DEFAULT = redis
+DRIVER = redis
 
 [QUEUE_REDIS]
 MODE = stream
-HOST = 127.0.0.1
-PORT = 6379
-PASSWORD = 
-SELECT = 0
 RETRY_AFTER = 60
 BLOCK_FOR = 5
 GROUP = think-queue
+
+[REDIS]
+HOST = 127.0.0.1
+PORT = 6379
+PASSWORD =
+SELECT = 0
+TIMEOUT = 0
+PERSISTENT = false
 ```
+
+完整对应关系：
+
+| 配置项 | 环境变量 | 默认值 |
+|--------|----------|--------|
+| default | QUEUE_DRIVER | sync |
+| queue（队列名） | QUEUE_NAME | default |
+| database.table | QUEUE_TABLE | jobs |
+| database.connection | QUEUE_CONNECTION | null |
+| redis.mode | QUEUE_REDIS_MODE | list |
+| redis.host | REDIS_HOST | 127.0.0.1 |
+| redis.port | REDIS_PORT | 6379 |
+| redis.password | REDIS_PASSWORD | (空) |
+| redis.select | REDIS_SELECT | 0 |
+| redis.timeout | REDIS_TIMEOUT | 0 |
+| redis.persistent | REDIS_PERSISTENT | false |
+| redis.retry_after | QUEUE_REDIS_RETRY_AFTER | 60 |
+| redis.block_for | QUEUE_REDIS_BLOCK_FOR | null |
+| redis.group | QUEUE_REDIS_GROUP | think-queue |
+| redis.consumer | QUEUE_REDIS_CONSUMER | (空，自动生成) |
+| failed.type | QUEUE_FAILED_DRIVER | none |
+| failed.table | QUEUE_FAILED_TABLE | failed_jobs |
 
 > 未设置的环境变量使用配置文件中的默认值。
 

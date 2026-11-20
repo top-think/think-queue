@@ -1,52 +1,58 @@
 <?php
 // +----------------------------------------------------------------------
-// | ThinkPHP [ WE CAN DO IT JUST THINK IT ]
-// +----------------------------------------------------------------------
-// | Copyright (c) 2006-2016 http://thinkphp.cn All rights reserved.
-// +----------------------------------------------------------------------
-// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
-// +----------------------------------------------------------------------
-// | Author: yunwuxin <448901948@qq.com>
+// | 队列设置
 // +----------------------------------------------------------------------
 
-use think\Env;
-
-// 所有配置项均支持环境变量覆盖，对应关系 Env::get('a.b.c') => .env 中 [A] B_C 或系统环境变量 PHP_A_B_C
 return [
-    'default'     => Env::get('queue.default', 'sync'),
+    // 默认队列驱动，可通过 .env 的 QUEUE_DRIVER 切换（sync / database / redis）
+    'default'     => env('QUEUE_DRIVER', 'sync'),
+
     'connections' => [
         'sync'     => [
             'type' => 'sync',
         ],
         'database' => [
             'type'       => 'database',
-            'queue'      => Env::get('queue.database.queue', 'default'),
-            'table'      => Env::get('queue.database.table', 'jobs'),
-            'connection' => Env::get('queue.database.connection'),
+            // 默认队列名
+            'queue'      => env('QUEUE_NAME', 'default'),
+            // 任务表名
+            'table'      => env('QUEUE_TABLE', 'jobs'),
+            // 使用的数据库连接，null 表示使用默认连接
+            'connection' => env('QUEUE_CONNECTION'),
         ],
         'redis'    => [
-            'type'       => 'redis',
+            'type' => 'redis',
             // 队列实现方式：list(默认，列表实现) 或 stream(Stream 消费者组实现，需要 Redis 5.0+)
-            'mode'       => Env::get('queue.redis.mode', 'list'),
-            'queue'      => Env::get('queue.redis.queue', 'default'),
-            'host'       => Env::get('queue.redis.host', '127.0.0.1'),
-            'port'       => (int) Env::get('queue.redis.port', 6379),
-            'password'   => Env::get('queue.redis.password', ''),
-            'select'     => (int) Env::get('queue.redis.select', 0),
-            'timeout'    => (int) Env::get('queue.redis.timeout', 0),
-            'persistent' => Env::get('queue.redis.persistent', false),
+            'mode' => env('QUEUE_REDIS_MODE', 'list'),
+            // 默认队列名
+            'queue' => env('QUEUE_NAME', 'default'),
+
+            // Redis 连接信息与 cache.php 共用同一组 REDIS_* 环境变量，一处配置两边生效
+            // 服务器地址
+            'host'       => env('REDIS_HOST', '127.0.0.1'),
+            // 端口
+            'port'       => (int) env('REDIS_PORT', 6379),
+            // 密码（留空表示无密码）
+            'password'   => env('REDIS_PASSWORD', ''),
+            // 库序号（建议队列使用独立库，避免与缓存键冲突）
+            'select'     => (int) env('REDIS_SELECT', 0),
+            // 连接超时（秒）
+            'timeout'    => (int) env('REDIS_TIMEOUT', 0),
+            // 是否使用长连接
+            'persistent' => env('REDIS_PERSISTENT', false),
+
             // 任务执行超过该秒数未被确认，将被重新投递
-            'retry_after' => (int) Env::get('queue.redis.retry_after', 60),
+            'retry_after' => (int) env('QUEUE_REDIS_RETRY_AFTER', 60),
             // pop 时最长阻塞秒数，为空表示不阻塞
-            'block_for'  => Env::get('queue.redis.block_for'),
+            'block_for' => env('QUEUE_REDIS_BLOCK_FOR'),
             // stream 模式专用：消费者组名称
-            'group'      => Env::get('queue.redis.group', 'think-queue'),
-            // stream 模式专用：消费者名称，为空时自动按主机名+进程号生成
-            'consumer'   => Env::get('queue.redis.consumer', ''),
+            'group'     => env('QUEUE_REDIS_GROUP', 'think-queue'),
+            // stream 模式专用：消费者名称，为空时自动按 主机名-进程号 生成
+            'consumer'  => env('QUEUE_REDIS_CONSUMER', ''),
         ],
     ],
     'failed'      => [
-        'type'  => Env::get('queue.failed.type', 'none'),
-        'table' => Env::get('queue.failed.table', 'failed_jobs'),
+        'type'  => env('QUEUE_FAILED_DRIVER', 'none'),
+        'table' => env('QUEUE_FAILED_TABLE', 'failed_jobs'),
     ],
 ];
