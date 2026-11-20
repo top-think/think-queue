@@ -27,23 +27,25 @@ class QueueTest extends TestCase
 
         $config = m::mock(Config::class);
 
-        $config->shouldReceive('get')->twice()->with('queue.connectors.sync', ['driver' => 'sync'])->andReturn(['driver' => 'sync']);
-        $config->shouldReceive('get')->once()->with('queue.default', 'sync')->andReturn('sync');
+        $config->shouldReceive('get')->with('queue.connections.sync.type', 'sync')->andReturn('sync');
+        $config->shouldReceive('get')->with('queue.connections.sync')->andReturn(['driver' => 'sync']);
+        $config->shouldReceive('get')->with('queue.default')->andReturn('sync');
 
         $this->app->shouldReceive('get')->times(3)->with('config')->andReturn($config);
 
-        $this->assertSame($sync, $this->queue->driver('sync'));
-        $this->assertSame($sync, $this->queue->driver());
+        $this->assertSame($sync, $this->queue->connection('sync'));
+        $this->assertSame($sync, $this->queue->connection());
     }
 
     public function testNotSupportDriver()
     {
         $config = m::mock(Config::class);
 
-        $config->shouldReceive('get')->once()->with('queue.connectors.hello', ['driver' => 'sync'])->andReturn(['driver' => 'hello']);
-        $this->app->shouldReceive('get')->once()->with('config')->andReturn($config);
+        $config->shouldReceive('get')->with('queue.connections.hello.type', 'sync')->andReturn('hello');
+        $config->shouldReceive('get')->with('queue.connections.hello')->andReturn(['driver' => 'hello']);
+        $this->app->shouldReceive('get')->times(2)->with('config')->andReturn($config);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->queue->driver('hello');
+        $this->queue->connection('hello');
     }
 }

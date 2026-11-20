@@ -5,9 +5,8 @@ namespace think\test\queue;
 use Carbon\Carbon;
 use Mockery as m;
 use Mockery\MockInterface;
-use ReflectionClass;
 use stdClass;
-use think\Db;
+use think\db\ConnectionInterface;
 use think\queue\Connector;
 use think\queue\connector\Database;
 
@@ -16,13 +15,13 @@ class DatabaseConnectorTest extends TestCase
     /** @var Database|MockInterface */
     protected $connector;
 
-    /** @var Db|MockInterface */
+    /** @var ConnectionInterface|MockInterface */
     protected $db;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->db        = m::mock(Db::class);
+        $this->db        = m::mock(ConnectionInterface::class);
         $this->connector = new Database($this->db, 'table', 'default');
     }
 
@@ -34,8 +33,8 @@ class DatabaseConnectorTest extends TestCase
             $this->assertEquals('default', $array['queue']);
             $this->assertEquals(json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]), $array['payload']);
             $this->assertEquals(0, $array['attempts']);
-            $this->assertNull($array['reserved_at']);
-            $this->assertIsInt($array['available_at']);
+            $this->assertNull($array['reserve_time']);
+            $this->assertIsInt($array['available_time']);
         });
         $this->connector->push('foo', ['data']);
     }
@@ -48,8 +47,8 @@ class DatabaseConnectorTest extends TestCase
             $this->assertEquals('default', $array['queue']);
             $this->assertEquals(json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]), $array['payload']);
             $this->assertEquals(0, $array['attempts']);
-            $this->assertNull($array['reserved_at']);
-            $this->assertIsInt($array['available_at']);
+            $this->assertNull($array['reserve_time']);
+            $this->assertIsInt($array['available_time']);
         });
 
         $this->connector->later(10, 'foo', ['data']);
@@ -62,30 +61,18 @@ class DatabaseConnectorTest extends TestCase
         $job          = new stdClass;
         $job->invalid = "\xc3\x28";
 
-        $queue = $this->getMockForAbstractClass(Connector::class);
-        $class = new ReflectionClass(Connector::class);
+        $queue = new TestConnector;
 
-        $createPayload = $class->getMethod('createPayload');
-        $createPayload->setAccessible(true);
-        $createPayload->invokeArgs($queue, [
-            $job,
-            'queue-name',
-        ]);
+        $queue->createPayloadForTest($job, 'queue-name');
     }
 
     public function testFailureToCreatePayloadFromArray()
     {
         $this->expectException('InvalidArgumentException');
 
-        $queue = $this->getMockForAbstractClass(Connector::class);
-        $class = new ReflectionClass(Connector::class);
+        $queue = new TestConnector;
 
-        $createPayload = $class->getMethod('createPayload');
-        $createPayload->setAccessible(true);
-        $createPayload->invokeArgs($queue, [
-            ["\xc3\x28"],
-            'queue-name',
-        ]);
+        $queue->createPayloadForTest(["\xc3\x28"], 'queue-name');
     }
 
     public function testBulkBatchPushesOntoDatabase()
@@ -100,19 +87,19 @@ class DatabaseConnectorTest extends TestCase
         $query->shouldReceive('insertAll')->once()->andReturnUsing(function ($records) use ($now) {
             $this->assertEquals([
                 [
-                    'queue'        => 'queue',
-                    'payload'      => json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
-                    'attempts'     => 0,
-                    'reserved_at'  => null,
-                    'available_at' => $now->getTimestamp(),
-                    'created_at'   => $now->getTimestamp(),
+                    'queue'          => 'queue',
+                    'payload'        => json_encode(['job' => 'foo', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
+                    'attempts'       => 0,
+                    'reserve_time'   => null,
+                    'available_time' => $now->getTimestamp(),
+                    'create_time'    => $now->getTimestamp(),
                 ], [
-                    'queue'        => 'queue',
-                    'payload'      => json_encode(['job' => 'bar', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
-                    'attempts'     => 0,
-                    'reserved_at'  => null,
-                    'available_at' => $now->getTimestamp(),
-                    'created_at'   => $now->getTimestamp(),
+                    'queue'          => 'queue',
+                    'payload'        => json_encode(['job' => 'bar', 'maxTries' => null, 'timeout' => null, 'data' => ['data']]),
+                    'attempts'       => 0,
+                    'reserve_time'   => null,
+                    'available_time' => $now->getTimestamp(),
+                    'create_time'    => $now->getTimestamp(),
                 ],
             ], $records);
         });
@@ -120,4 +107,32 @@ class DatabaseConnectorTest extends TestCase
         $this->connector->bulk(['foo', 'bar'], ['data'], 'queue');
     }
 
+}
+
+class TestConnector extends Connector
+{
+    public function size($queue = null)
+    {
+    }
+
+    public function push($job, $data = '', $queue = null)
+    {
+    }
+
+    public function pushRaw($payload, $queue = null, array $options = [])
+    {
+    }
+
+    public function later($delay, $job, $data = '', $queue = null)
+    {
+    }
+
+    public function pop($queue = null)
+    {
+    }
+
+    public function createPayloadForTest($job, $data = '')
+    {
+        return $this->createPayload($job, $data);
+    }
 }
