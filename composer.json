@@ -1,6 +1,6 @@
 {
-    "name": "topthink/think-queue",
-    "description": "The ThinkPHP Queue Package, support ThinkPHP 6 / 8 and PHP 8.0+",
+    "name": "tobycroft/think-queue-lts",
+    "description": "The ThinkPHP Queue Package (LTS), support ThinkPHP 8 and PHP 8.0+",
     "authors": [
         {
             "name": "yunwuxin",
@@ -24,8 +24,8 @@
     "require": {
         "php": ">=8.0",
         "ext-json": "*",
-        "topthink/framework": "^6.0 || ^8.0",
-        "symfony/process": ">=4.2",
+        "topthink/framework": "^8.0",
+        "symfony/process": "^5.4 || ^6.4 || ^7.0 || ^8.0",
         "nesbot/carbon": "^2.16 || ^3.0"
     },
     "extra": {
