@@ -535,6 +535,160 @@ LUA;
         return $this->getQueue($queue) . ':delayed:wake';
     }
 
+    /* ---------------------------------------------------------------
+     * 只读监控指标（供 queue:monitor 使用，不产生任何写入）
+     * --------------------------------------------------------------- */
+
+    /**
+     * Stream 概况
+     *
+     * entries-added 为自 Stream 创建以来累计 XADD 的条目数（单调递增），
+     * 可用于推导累计完成数：已完成 ≈ entries-added - length - 重回延迟数
+     *
+     * @param string|null $queue
+     * @return array [length, entriesAdded]
+     */
+    public function streamStats($queue = null)
+    {
+        $info = $this->redis->xInfo('STREAM', $this->streamKey($queue));
+
+        return [
+            'length'       => (int) ($info['length'] ?? 0),
+            'entriesAdded' => (int) ($info['entries-added'] ?? 0),
+        ];
+    }
+
+    /**
+     * 待处理（PEL）概况
+     *
+     * timeout 为已投递但 idle 超过 retry_after、将被重新投递的数量，
+     * 最多统计 500 条（超出时返回 500 作为下限）
+     *
+     * @param string|null $queue
+     * @return array [count, timeout]
+     */
+    public function pendingStats($queue = null)
+    {
+        $streamKey = $this->streamKey($queue);
+
+        $summary = $this->redis->xPending($streamKey, $this->group);
+        $count   = is_array($summary) ? (int) $summary[0] : 0;
+
+        $timeout = 0;
+        if ($count > 0 && null !== $this->retryAfter) {
+            $entries = $this->redis->xPending(
+                $streamKey,
+                $this->group,
+                '-',
+                '+',
+                500,
+                null,
+                $this->retryAfter * 1000
+            );
+            if (is_array($entries)) {
+                $timeout = count($entries);
+            }
+        }
+
+        return ['count' => $count, 'timeout' => $timeout];
+    }
+
+    /**
+     * 消费者概况（可据此判断 worker 是否存活）
+     *
+     * @param string|null $queue
+     * @return array 每项 [name, pending, idle, inactive]
+     */
+    public function consumersStats($queue = null)
+    {
+        $consumers = $this->redis->xInfo('CONSUMERS', $this->streamKey($queue), $this->group);
+
+        $out = [];
+        foreach ((array) $consumers as $consumer) {
+            $out[] = [
+                'name'     => $consumer['name'] ?? '?',
+                'pending'  => (int) ($consumer['pending'] ?? 0),
+                'idle'     => (int) ($consumer['idle'] ?? 0),
+                'inactive' => (int) ($consumer['inactive'] ?? -1),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * 延迟任务概况
+     *
+     * reReleased 为「已投递过（payload attempts 基数 > 0）后又重回延迟集合」的任务数，
+     * 用于完成数推导；延迟任务超过 $sample 条时只统计最早（最先到期）的 $sample 条并标记 sampled
+     *
+     * @param string|null $queue
+     * @param int $limit 最近到期任务的展示条数
+     * @param int $sample attempts 采样的任务数上限
+     * @return array [count, next, reReleased, sampled]
+     */
+    public function delayedStats($queue = null, $limit = 5, $sample = 300)
+    {
+        $key     = $this->delayedKey($queue);
+        $dataKey = $key . ':data';
+        $count   = (int) $this->redis->zCard($key);
+
+        // 最近将到期的任务（简略信息）
+        $next = [];
+        if ($limit > 0 && $count > 0) {
+            $entries = $this->redis->zRange($key, 0, $limit - 1, true);
+            foreach ($entries as $jobId => $dueMs) {
+                $payload = json_decode((string) $this->redis->hGet($dataKey, $jobId), true);
+                $next[] = [
+                    'jobId' => (string) $jobId,
+                    'dueMs' => (int) $dueMs,
+                    'job'   => $payload['job'] ?? '?',
+                ];
+            }
+        }
+
+        // 统计重回延迟的任务（attempts 基数 > 0）
+        $reReleased = 0;
+        $sampled    = false;
+        if ($count > 0) {
+            $ids     = $this->redis->zRange($key, 0, $sample - 1);
+            $sampled = $count > $sample;
+            if (!empty($ids)) {
+                $payloads = $this->redis->hMGet($dataKey, $ids);
+                foreach ((array) $payloads as $payload) {
+                    $decoded = is_string($payload) ? json_decode($payload, true) : null;
+                    if (($decoded['attempts'] ?? 0) > 0) {
+                        $reReleased++;
+                    }
+                }
+            }
+        }
+
+        return ['count' => $count, 'next' => $next, 'reReleased' => $reReleased, 'sampled' => $sampled];
+    }
+
+    /**
+     * 幂等锁占用数量（SCAN 有界扫描，不阻塞 Redis）
+     *
+     * @param string|null $queue
+     * @param int $maxScan 扫描上限，达到后停止
+     * @return int
+     */
+    public function lockCount($queue = null, $maxScan = 2000)
+    {
+        $iterator = null;
+        $count    = 0;
+
+        while (false !== ($keys = $this->redis->scan($iterator, $this->getQueue($queue) . ':lock:*', 500))) {
+            $count += count($keys);
+            if (0 === $iterator || $count >= $maxScan) {
+                break;
+            }
+        }
+
+        return $count;
+    }
+
     /**
      * 确保消费者组存在
      *
