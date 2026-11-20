@@ -469,8 +469,9 @@ LUA;
         $client->setOption(\Redis::OPT_READ_TIMEOUT, $timeoutSeconds);
 
         try {
-            $client->subscribe([$this->wakeChannel($queue)], function () {
-                // 唤醒通知仅用于打断等待，内容不承载任务数据
+            $client->subscribe([$this->wakeChannel($queue)], function ($client) use ($queue) {
+                // 收到唤醒通知后立即取消订阅，打断阻塞等待返回调度循环
+                $client->unsubscribe([$this->wakeChannel($queue)]);
             });
 
             return true;
