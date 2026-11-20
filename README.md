@@ -62,6 +62,8 @@ PERSISTENT = false
 | redis.lock_ttl | QUEUE_REDIS_LOCK_TTL | 3600 |
 | redis.group | QUEUE_REDIS_GROUP | think-queue |
 | redis.consumer | QUEUE_REDIS_CONSUMER | (空，自动生成) |
+| redis.scheduler.batch | QUEUE_REDIS_SCHEDULER_BATCH | 100 |
+| redis.scheduler.interval | QUEUE_REDIS_SCHEDULER_INTERVAL | 10 |
 | failed.type | QUEUE_FAILED_DRIVER | none |
 | failed.table | QUEUE_FAILED_TABLE | failed_jobs |
 
@@ -88,14 +90,55 @@ PERSISTENT = false
     //以下为 mode=stream 专用配置
     'group'      => 'think-queue',  //消费者组名称
     'consumer'   => '',             //消费者名称，为空时自动按 主机名-进程号 生成
+    'scheduler'  => [               //延迟任务调度器
+        'batch'    => 100,          //单次迁移到期任务的数量上限
+        'interval' => 10,           //无唤醒通知时的定期兜底检查间隔(秒)
+    ],
 ],
 ```
 
 `stream` 模式说明：
 
 - 消息通过 Redis Stream + 消费者组投递，支持消息的待处理（PEL）语义，消费失败或超时（`retry_after`）后消息会被重新投递；重试次数由消费者组的投递次数 + release 时固化的尝试基数记录，保证 maxTries 语义正确
-- 延迟任务复用有序集合（`{queues:xxx}:delayed`），到期后自动迁移到 Stream
-- 切换 mode 不影响已有延迟任务的消费
+- 延迟任务采用 ZSET + HASH 组合存储（详见下方「延迟任务调度」），到期后由调度器迁移到 Stream
+- 注意：stream 模式的延迟任务格式与 list 模式不同，切换 mode 前请先用旧模式的调度/消费流程处理完存量延迟任务
+
+### 延迟任务调度（stream 模式）
+
+延迟任务使用「ZSET 时间索引 + HASH 任务数据」组合存储，到期后通过 Lua 脚本原子迁移到现有 Stream，由原有消费者组和 worker 消费，投递语义为至少一次：
+
+| Redis Key | 类型 | 说明 |
+|-----------|------|------|
+| `{queues:xxx}:delayed` | ZSET | 时间索引，member 为任务 job_id，score 为计划执行的 Unix 毫秒时间戳 |
+| `{queues:xxx}:delayed:data` | HASH | 任务数据，field 为 job_id，value 为 payload JSON |
+| `{queues:xxx}:delayed:wake` | Pub/Sub 频道 | 唤醒通知，仅用于让调度器提前重新计算等待时间，不作为可靠性依据 |
+
+发布延迟任务（接口与原 `later` 完全兼容）：
+
+```php
+// 指定延迟秒数（原有接口，行为不变）
+Queue::later(5, $job, $data);
+// 指定执行时间（DateTimeInterface）
+Queue::later(new \DateTime('+10 seconds'), $job, $data);
+// 指定执行的毫秒级时间戳（毫秒精度调度）
+Queue::connection('redis')->laterAtMs(round(microtime(true) * 1000) + 1500, $job, $data);
+```
+
+启动调度器（生产环境必须为 stream 模式启动至少一个调度器进程，可多实例部署）：
+
+```bash
+php think queue:scheduler                          # 使用默认连接
+php think queue:scheduler redis --queue=default    # 指定连接与队列
+php think queue:scheduler --batch=200 --interval=5 # 覆盖单次迁移数量与兜底间隔
+```
+
+调度器机制：
+
+- **动态等待**：查询 ZSET 最早任务的毫秒时间戳，按剩余时间设置等待时长，到期立即迁移；不使用高频轮询，延迟集合为空时按 `interval` 兜底定期检查
+- **唤醒机制**：生产者写入延迟任务后通过 Pub/Sub 发布唤醒通知，调度器收到后立即重新查询最早任务；通知丢失或断线期间由兜底间隔覆盖
+- **原子迁移**：到期任务通过 Lua 脚本「查询 → 写入 Stream → 清理 ZSET/HASH」一次执行完成，多个调度器并发运行不会重复迁移同一条任务
+- **至少一次投递**：迁移后任务完全交由现有 Stream 消费机制（ACK、PEL、重试、幂等锁）处理；重复投递由 job_id 幂等锁兜底
+- **重启恢复**：调度器不持有任何任务状态，重启后自动从 ZSET 恢复调度；Redis 断线自动重试，恢复后继续调度
 
 ### 任务幂等锁（lock）
 
