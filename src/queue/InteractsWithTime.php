@@ -62,4 +62,33 @@ trait InteractsWithTime
     {
         return Carbon::now()->getTimestamp();
     }
+
+    /**
+     * Get the "available at" UNIX millisecond timestamp.
+     *
+     * 延迟任务调度统一使用毫秒精度：
+     * - 传入 DateTimeInterface 时视为绝对时间（秒级精度，毫秒位补零）
+     * - 传入数值时视为延迟秒数
+     *
+     * @param DateTimeInterface|DateInterval|int $delay
+     * @return int
+     */
+    protected function availableAtMs($delay = 0)
+    {
+        $delay = $this->parseDateInterval($delay);
+
+        return $delay instanceof DateTimeInterface
+            ? $delay->getTimestamp() * 1000
+            : $this->currentTimeMs() + (int) ($delay * 1000);
+    }
+
+    /**
+     * Get the current system time as a UNIX millisecond timestamp.
+     *
+     * @return int
+     */
+    public function currentTimeMs()
+    {
+        return (int) floor(microtime(true) * 1000);
+    }
 }

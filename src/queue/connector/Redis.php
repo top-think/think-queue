@@ -47,12 +47,44 @@ class Redis extends Connector
      */
     protected $blockFor = null;
 
-    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null)
+    /**
+     * 是否启用任务幂等锁
+     *
+     * @var bool
+     */
+    protected $lock = true;
+
+    /**
+     * 幂等锁 TTL（秒），应大于最长任务执行时长；
+     * worker 崩溃后任务等待该时长才能被重新认领
+     *
+     * @var int
+     */
+    protected $lockTtl = 3600;
+
+    /**
+     * 当前进程持有锁的任务（用于安全释放，避免误删其他 worker 的锁）
+     *
+     * @var array
+     */
+    protected $lockedJobs = [];
+
+    /**
+     * 创建连接时使用的配置（供需要独立连接的组件复用，如调度器的订阅连接）
+     *
+     * @var array
+     */
+    protected $clientConfig = [];
+
+    public function __construct($redis, $default = 'default', $retryAfter = 60, $blockFor = null, $lock = true, $lockTtl = 3600, $clientConfig = [])
     {
-        $this->redis      = $redis;
-        $this->default    = $default;
-        $this->retryAfter = $retryAfter;
-        $this->blockFor   = $blockFor;
+        $this->redis        = $redis;
+        $this->default      = $default;
+        $this->retryAfter   = $retryAfter;
+        $this->blockFor     = $blockFor;
+        $this->lock         = $lock;
+        $this->lockTtl      = $lockTtl;
+        $this->clientConfig = $clientConfig ?: [];
     }
 
     public static function __make($config)
@@ -61,7 +93,22 @@ class Redis extends Connector
             throw new Exception('redis扩展未安装');
         }
 
-        $redis = new class($config) {
+        $redis = static::createRedisClient($config);
+
+        return new self(
+            $redis,
+            $config['queue'],
+            $config['retry_after'] ?? 60,
+            $config['block_for'] ?? null,
+            $config['lock'] ?? true,
+            $config['lock_ttl'] ?? 3600,
+            $config
+        );
+    }
+
+    protected static function createRedisClient($config)
+    {
+        return new class($config) {
             protected $config;
             protected $client;
 
@@ -89,6 +136,13 @@ class Redis extends Connector
                 return $client;
             }
 
+            public function getClient()
+            {
+                // 返回底层原生 \Redis 客户端
+                // 需要引用传参的方法（如 scan 游标扫描）必须绕过 __call（按值转发会丢失引用）
+                return $this->client;
+            }
+
             public function __call($name, $arguments)
             {
                 try {
@@ -102,8 +156,6 @@ class Redis extends Connector
                 }
             }
         };
-
-        return new self($redis, $config['queue'], $config['retry_after'] ?? 60, $config['block_for'] ?? null);
     }
 
     public function size($queue = null)
@@ -111,6 +163,43 @@ class Redis extends Connector
         $queue = $this->getQueue($queue);
 
         return $this->redis->lLen($queue) + $this->redis->zCard("{$queue}:delayed") + $this->redis->zCard("{$queue}:reserved");
+    }
+
+    /* ---------------------------------------------------------------
+     * 只读监控指标（供 queue:monitor 使用，不产生任何写入）
+     * --------------------------------------------------------------- */
+
+    /**
+     * 待消费任务数量
+     *
+     * @param string|null $queue
+     * @return int
+     */
+    public function readyCount($queue = null)
+    {
+        return (int) $this->redis->lLen($this->getQueue($queue));
+    }
+
+    /**
+     * 已投递未确认（reserved）任务数量
+     *
+     * @param string|null $queue
+     * @return int
+     */
+    public function reservedCount($queue = null)
+    {
+        return (int) $this->redis->zCard($this->getQueue($queue) . ':reserved');
+    }
+
+    /**
+     * 延迟任务数量
+     *
+     * @param string|null $queue
+     * @return int
+     */
+    public function delayedCount($queue = null)
+    {
+        return (int) $this->redis->zCard($this->getQueue($queue) . ':delayed');
     }
 
     public function push($job, $data = '', $queue = null)
@@ -221,6 +310,12 @@ class Redis extends Connector
             $reserved['attempts']++;
             $reserved = json_encode($reserved);
             $this->redis->zAdd($queue . ':reserved', $this->availableAt($this->retryAfter), $reserved);
+
+            // 同一任务已被其他 worker 锁定（执行时长超过 retry_after 被重复投递），丢弃本次投递
+            if (!$this->acquireJobLock($queue, $this->getPayloadJobId($job))) {
+                $this->redis->zRem($queue . ':reserved', $reserved);
+                return [null, null];
+            }
         }
 
         return [$job, $reserved];
@@ -245,6 +340,12 @@ class Redis extends Connector
 
             $this->redis->zadd($queue . ':reserved', $this->availableAt($this->retryAfter), $reserved);
 
+            // 同一任务已被其他 worker 锁定，丢弃本次重复投递
+            if (!$this->acquireJobLock($queue, $this->getPayloadJobId($rawBody[1]))) {
+                $this->redis->zRem($queue . ':reserved', $reserved);
+                return [null, null];
+            }
+
             return [$rawBody[1], $reserved];
         }
 
@@ -261,6 +362,8 @@ class Redis extends Connector
     public function deleteReserved($queue, $job)
     {
         $this->redis->zRem($this->getQueue($queue) . ':reserved', $job->getReservedJob());
+
+        $this->releaseJobLock($this->getQueue($queue), $job->getJobId());
     }
 
     /**
@@ -280,6 +383,68 @@ class Redis extends Connector
         $this->redis->zRem($queue . ':reserved', $reserved);
 
         $this->redis->zAdd($queue . ':delayed', $this->availableAt($delay), $reserved);
+
+        // 重新入队后由下次投递重新获取锁
+        $this->releaseJobLock($queue, $job->getJobId());
+    }
+
+    /**
+     * 尝试获取任务幂等锁
+     *
+     * 防止执行时长超过 retry_after 的任务被重新投递后，被多个 worker 同时执行。
+     * 仅允许当前进程释放自己持有的锁，避免误删其他 worker 的锁。
+     *
+     * @param string $queueKey 已加前缀的队列键名（getQueue 的返回值）
+     * @param string $jobId
+     * @return bool
+     */
+    protected function acquireJobLock($queueKey, $jobId)
+    {
+        if (!$this->lock || empty($jobId)) {
+            return true;
+        }
+
+        $key = $queueKey . ':lock:' . $jobId;
+
+        if (!$this->redis->set($key, '1', ['nx', 'ex' => $this->lockTtl])) {
+            return false;
+        }
+
+        $this->lockedJobs[$key] = true;
+
+        return true;
+    }
+
+    /**
+     * 释放任务幂等锁
+     *
+     * @param string $queueKey 已加前缀的队列键名（getQueue 的返回值）
+     * @param string $jobId
+     * @return void
+     */
+    protected function releaseJobLock($queueKey, $jobId)
+    {
+        if (empty($jobId)) {
+            return;
+        }
+
+        $key = $queueKey . ':lock:' . $jobId;
+
+        if (isset($this->lockedJobs[$key])) {
+            $this->redis->del($key);
+            unset($this->lockedJobs[$key]);
+        }
+    }
+
+    /**
+     * 从 payload 中取任务 id
+     *
+     * @param string $payload
+     * @return string|null
+     */
+    protected function getPayloadJobId($payload)
+    {
+        return json_decode($payload, true)['id'] ?? null;
     }
 
     /**

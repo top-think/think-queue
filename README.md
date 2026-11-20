@@ -1,4 +1,4 @@
-# think-queue for ThinkPHP6
+# think-queue for ThinkPHP8
 
 ## 安装
 
@@ -15,6 +15,165 @@
     'default'=>'sync' //驱动类型，可选择 sync(默认):同步执行，database:数据库驱动,redis:Redis驱动//或其他自定义的完整的类名
 ]
 ```
+
+### 环境变量
+
+配置文件中的每一项都支持通过 `.env`（或系统环境变量）覆盖，安装后无需修改配置文件即可完成部署。
+
+Redis 连接信息（`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD` 等）与缓存（`cache.php`）共用同一组环境变量，一处配置两边生效；队列特有参数使用 `QUEUE_*` 前缀：
+
+```bash
+[QUEUE]
+DRIVER = redis
+
+[QUEUE_REDIS]
+MODE = stream
+RETRY_AFTER = 60
+BLOCK_FOR = 5
+GROUP = think-queue
+
+[REDIS]
+HOST = 127.0.0.1
+PORT = 6379
+PASSWORD =
+SELECT = 0
+TIMEOUT = 0
+PERSISTENT = false
+```
+
+完整对应关系：
+
+| 配置项 | 环境变量 | 默认值 |
+|--------|----------|--------|
+| default | QUEUE_DRIVER | sync |
+| queue（队列名） | QUEUE_NAME | default |
+| database.table | QUEUE_TABLE | jobs |
+| database.connection | QUEUE_CONNECTION | null |
+| redis.mode | QUEUE_REDIS_MODE | list |
+| redis.host | REDIS_HOST | 127.0.0.1 |
+| redis.port | REDIS_PORT | 6379 |
+| redis.password | REDIS_PASSWORD | (空) |
+| redis.select | REDIS_SELECT | 0 |
+| redis.timeout | REDIS_TIMEOUT | 0 |
+| redis.persistent | REDIS_PERSISTENT | false |
+| redis.retry_after | QUEUE_REDIS_RETRY_AFTER | 60 |
+| redis.block_for | QUEUE_REDIS_BLOCK_FOR | null |
+| redis.lock | QUEUE_REDIS_LOCK | true |
+| redis.lock_ttl | QUEUE_REDIS_LOCK_TTL | 3600 |
+| redis.group | QUEUE_REDIS_GROUP | think-queue |
+| redis.consumer | QUEUE_REDIS_CONSUMER | (空，自动生成) |
+| redis.scheduler.batch | QUEUE_REDIS_SCHEDULER_BATCH | 100 |
+| redis.scheduler.interval | QUEUE_REDIS_SCHEDULER_INTERVAL | 10 |
+| failed.type | QUEUE_FAILED_DRIVER | none |
+| failed.table | QUEUE_FAILED_TABLE | failed_jobs |
+
+> 未设置的环境变量使用配置文件中的默认值。
+
+### Redis 连接（mode 模式）
+
+```bash
+'redis' => [
+    'type'       => 'redis',
+    'mode'       => 'list',  //队列实现方式：list(默认):Redis列表实现，stream:Redis Stream消费者组实现(需要Redis 5.0+)
+    'queue'      => 'default',
+    'host'       => '127.0.0.1',
+    'port'       => 6379,
+    'password'   => '',
+    'select'     => 0,
+    'timeout'    => 0,
+    'persistent' => false,
+    'retry_after' => 60,     //任务执行超过该秒数未被确认，将被重新投递
+    'block_for'  => null,    //pop时最长阻塞秒数，为null表示不阻塞
+    'lock'       => true,    //任务幂等锁：防止执行时长超过retry_after被重复投递的任务被多个worker同时执行
+    'lock_ttl'   => 3600,    //幂等锁TTL(秒)，应大于最长任务执行时长；worker崩溃后任务等待该时长才能被重新认领
+
+    //以下为 mode=stream 专用配置
+    'group'      => 'think-queue',  //消费者组名称
+    'consumer'   => '',             //消费者名称，为空时自动按 主机名-进程号 生成
+    'scheduler'  => [               //延迟任务调度器
+        'batch'    => 100,          //单次迁移到期任务的数量上限
+        'interval' => 10,           //无唤醒通知时的定期兜底检查间隔(秒)
+    ],
+],
+```
+
+`stream` 模式说明：
+
+- 消息通过 Redis Stream + 消费者组投递，支持消息的待处理（PEL）语义，消费失败或超时（`retry_after`）后消息会被重新投递；重试次数由消费者组的投递次数 + release 时固化的尝试基数记录，保证 maxTries 语义正确
+- 延迟任务采用 ZSET + HASH 组合存储（详见下方「延迟任务调度」），到期后由调度器迁移到 Stream
+- 注意：stream 模式的延迟任务格式与 list 模式不同，切换 mode 前请先用旧模式的调度/消费流程处理完存量延迟任务
+
+### 延迟任务调度（stream 模式）
+
+延迟任务使用「ZSET 时间索引 + HASH 任务数据」组合存储，到期后通过 Lua 脚本原子迁移到现有 Stream，由原有消费者组和 worker 消费，投递语义为至少一次：
+
+| Redis Key | 类型 | 说明 |
+|-----------|------|------|
+| `{queues:xxx}:delayed` | ZSET | 时间索引，member 为任务 job_id，score 为计划执行的 Unix 毫秒时间戳 |
+| `{queues:xxx}:delayed:data` | HASH | 任务数据，field 为 job_id，value 为 payload JSON |
+| `{queues:xxx}:delayed:wake` | Pub/Sub 频道 | 唤醒通知，仅用于让调度器提前重新计算等待时间，不作为可靠性依据 |
+
+发布延迟任务（接口与原 `later` 完全兼容）：
+
+```php
+// 指定延迟秒数（原有接口，行为不变）
+Queue::later(5, $job, $data);
+// 指定执行时间（DateTimeInterface）
+Queue::later(new \DateTime('+10 seconds'), $job, $data);
+// 指定执行的毫秒级时间戳（毫秒精度调度）
+Queue::connection('redis')->laterAtMs(round(microtime(true) * 1000) + 1500, $job, $data);
+```
+
+启动调度器（生产环境必须为 stream 模式启动至少一个调度器进程，可多实例部署）：
+
+```bash
+php think queue:scheduler                          # 使用默认连接
+php think queue:scheduler redis --queue=default    # 指定连接与队列
+php think queue:scheduler --batch=200 --interval=5 # 覆盖单次迁移数量与兜底间隔
+```
+
+调度器机制：
+
+- **动态等待**：查询 ZSET 最早任务的毫秒时间戳，按剩余时间设置等待时长，到期立即迁移；不使用高频轮询，延迟集合为空时按 `interval` 兜底定期检查
+- **唤醒机制**：生产者写入延迟任务后通过 Pub/Sub 发布唤醒通知，调度器收到后立即重新查询最早任务；通知丢失或断线期间由兜底间隔覆盖
+- **原子迁移**：到期任务通过 Lua 脚本「查询 → 写入 Stream → 清理 ZSET/HASH」一次执行完成，多个调度器并发运行不会重复迁移同一条任务
+- **至少一次投递**：迁移后任务完全交由现有 Stream 消费机制（ACK、PEL、重试、幂等锁）处理；重复投递由 job_id 幂等锁兜底
+- **重启恢复**：调度器不持有任何任务状态，重启后自动从 ZSET 恢复调度；Redis 断线自动重试，恢复后继续调度
+
+### 队列监控（queue:monitor）
+
+实时只读监控队列状态，全程仅使用 Redis 只读命令（`XINFO` / `XPENDING` / `ZCARD` / `SCAN`），不向业务队列写入任何数据：
+
+```bash
+php think queue:monitor                    # 实时刷新（默认 2 秒）
+php think queue:monitor redis --queue=default --interval=1
+php think queue:monitor --once             # 单次快照（适合 cron / 告警脚本）
+php think queue:monitor --json             # JSON 快照（适合程序采集、接 Web 面板）
+```
+
+输出内容（stream 模式）：
+
+- **Stream**：待消费数、执行中（PEL）数、其中超过 `retry_after` 将被重投的数量
+- **吞吐**：累计生产（`entries-added`）、累计完成推导值（`≈` 表示估算）、实时速率（刷新差分）
+- **Delayed**：延迟任务总数 + 最近到期任务的时间轴
+- **Workers**：在线消费者及各自 pending（可判断 worker 掉线）
+- **锁占用 / 失败数**：幂等锁占用数量；失败数仅 `database` 失败驱动可统计
+
+注意事项：
+
+- 累计完成数由 `entries-added - Stream在途 - 重回延迟数` 推导，是估算值（重试任务每轮完成都会计入）；延迟任务超过 300 条时采样统计，显示 `≈≈`
+- list 模式自动降级为 Ready / Reserved / Delayed 三项基础数量
+
+### 任务幂等锁（lock）
+
+默认开启。任务执行时长超过 `retry_after` 时，消息会被重新投递给其他 worker，导致同一任务被多个进程同时执行。开启幂等锁后，pop 到已被其他 worker 处理中的同一任务（按 payload 中的任务 id 判定）会直接跳过本次投递，避免重复执行。
+
+使用约束：
+
+- `lock_ttl` 应大于最长任务执行时长，否则锁过期后仍可能重复执行
+- worker 崩溃时，其锁定的任务需等待 `lock_ttl` 过期后才能被重新认领
+- list 模式下被跳过的重复投递会被直接丢弃（任务至少执行一次）；stream 模式下消息保留在 PEL 中，持有者完成后正常删除
+- 可通过 `QUEUE_REDIS_LOCK=false` 关闭（关闭后请务必保证 `retry_after` > 最长任务时长）
 
 
 ## 创建任务类
