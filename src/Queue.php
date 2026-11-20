@@ -14,6 +14,7 @@ namespace think;
 use think\queue\Connector;
 use think\queue\connector\Database;
 use think\queue\connector\Redis;
+use think\queue\connector\RedisStream;
 
 /**
  * Class Queue
@@ -21,6 +22,7 @@ use think\queue\connector\Redis;
  *
  * @mixin Database
  * @mixin Redis
+ * @mixin RedisStream
  */
 class Queue extends Manager
 {
@@ -28,7 +30,16 @@ class Queue extends Manager
 
     protected function resolveType(string $name)
     {
-        return $this->app->config->get("queue.connections.{$name}.type", 'sync');
+        $config = $this->app->config->get("queue.connections.{$name}", []);
+
+        $type = $config['type'] ?? 'sync';
+
+        // redis 连接按 mode 分发实现：list(默认) 或 stream
+        if ('redis' === $type && 'stream' === ($config['mode'] ?? 'list')) {
+            return RedisStream::class;
+        }
+
+        return $type;
     }
 
     protected function resolveConfig(string $name)

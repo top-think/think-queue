@@ -16,6 +16,57 @@
 ]
 ```
 
+### 环境变量
+
+配置文件中的每一项都支持通过 `.env`（或系统环境变量）覆盖，安装后无需修改配置文件即可完成部署。
+
+对应规则：`Env::get('queue.redis.host')` 读取 `.env` 中 `[QUEUE]` 段的 `REDIS_HOST`，即：
+
+```bash
+[QUEUE]
+DEFAULT = redis
+
+[QUEUE_REDIS]
+MODE = stream
+HOST = 127.0.0.1
+PORT = 6379
+PASSWORD = 
+SELECT = 0
+RETRY_AFTER = 60
+BLOCK_FOR = 5
+GROUP = think-queue
+```
+
+> 未设置的环境变量使用配置文件中的默认值。
+
+### Redis 连接（mode 模式）
+
+```bash
+'redis' => [
+    'type'       => 'redis',
+    'mode'       => 'list',  //队列实现方式：list(默认):Redis列表实现，stream:Redis Stream消费者组实现(需要Redis 5.0+)
+    'queue'      => 'default',
+    'host'       => '127.0.0.1',
+    'port'       => 6379,
+    'password'   => '',
+    'select'     => 0,
+    'timeout'    => 0,
+    'persistent' => false,
+    'retry_after' => 60,     //任务执行超过该秒数未被确认，将被重新投递
+    'block_for'  => null,    //pop时最长阻塞秒数，为null表示不阻塞
+
+    //以下为 mode=stream 专用配置
+    'group'      => 'think-queue',  //消费者组名称
+    'consumer'   => '',             //消费者名称，为空时自动按 主机名-进程号 生成
+],
+```
+
+`stream` 模式说明：
+
+- 消息通过 Redis Stream + 消费者组投递，支持消息的待处理（PEL）语义，消费失败或超时（`retry_after`）后消息会被重新投递，重试次数由消费者组的投递次数记录
+- 延迟任务复用有序集合（`{queues:xxx}:delayed`），到期后自动迁移到 Stream
+- 切换 mode 不影响已有延迟任务的消费
+
 
 ## 创建任务类
 > 推荐使用 `app\job` 作为任务类的命名空间

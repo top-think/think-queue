@@ -61,7 +61,14 @@ class Redis extends Connector
             throw new Exception('redis扩展未安装');
         }
 
-        $redis = new class($config) {
+        $redis = static::createRedisClient($config);
+
+        return new self($redis, $config['queue'], $config['retry_after'] ?? 60, $config['block_for'] ?? null);
+    }
+
+    protected static function createRedisClient($config)
+    {
+        return new class($config) {
             protected $config;
             protected $client;
 
@@ -102,8 +109,6 @@ class Redis extends Connector
                 }
             }
         };
-
-        return new self($redis, $config['queue'], $config['retry_after'] ?? 60, $config['block_for'] ?? null);
     }
 
     public function size($queue = null)

@@ -27,7 +27,7 @@ class QueueTest extends TestCase
 
         $config = m::mock(Config::class);
 
-        $config->shouldReceive('get')->with('queue.connections.sync.type', 'sync')->andReturn('sync');
+        $config->shouldReceive('get')->with('queue.connections.sync', [])->andReturn(['type' => 'sync', 'driver' => 'sync']);
         $config->shouldReceive('get')->with('queue.connections.sync')->andReturn(['driver' => 'sync']);
         $config->shouldReceive('get')->with('queue.default')->andReturn('sync');
 
@@ -41,7 +41,7 @@ class QueueTest extends TestCase
     {
         $config = m::mock(Config::class);
 
-        $config->shouldReceive('get')->with('queue.connections.hello.type', 'sync')->andReturn('hello');
+        $config->shouldReceive('get')->with('queue.connections.hello', [])->andReturn(['type' => 'hello']);
         $config->shouldReceive('get')->with('queue.connections.hello')->andReturn(['driver' => 'hello']);
         $this->app->shouldReceive('get')->times(2)->with('config')->andReturn($config);
 
