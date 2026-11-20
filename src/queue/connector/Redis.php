@@ -158,6 +158,43 @@ class Redis extends Connector
         return $this->redis->lLen($queue) + $this->redis->zCard("{$queue}:delayed") + $this->redis->zCard("{$queue}:reserved");
     }
 
+    /* ---------------------------------------------------------------
+     * 只读监控指标（供 queue:monitor 使用，不产生任何写入）
+     * --------------------------------------------------------------- */
+
+    /**
+     * 待消费任务数量
+     *
+     * @param string|null $queue
+     * @return int
+     */
+    public function readyCount($queue = null)
+    {
+        return (int) $this->redis->lLen($this->getQueue($queue));
+    }
+
+    /**
+     * 已投递未确认（reserved）任务数量
+     *
+     * @param string|null $queue
+     * @return int
+     */
+    public function reservedCount($queue = null)
+    {
+        return (int) $this->redis->zCard($this->getQueue($queue) . ':reserved');
+    }
+
+    /**
+     * 延迟任务数量
+     *
+     * @param string|null $queue
+     * @return int
+     */
+    public function delayedCount($queue = null)
+    {
+        return (int) $this->redis->zCard($this->getQueue($queue) . ':delayed');
+    }
+
     public function push($job, $data = '', $queue = null)
     {
         return $this->pushRaw($this->createPayload($job, $data), $queue);
