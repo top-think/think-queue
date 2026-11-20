@@ -1,10 +1,10 @@
 {
     "name": "tobycroft/think-queue-lts",
-    "description": "The ThinkPHP Queue Package (LTS), support ThinkPHP 8 and PHP 8.0+",
+    "description": "The ThinkPHP Queue Package (LTS), support ThinkPHP 8.1 and PHP 8.5+",
     "authors": [
         {
-            "name": "yunwuxin",
-            "email": "448901948@qq.com"
+            "name": "tobycroft",
+            "email": "710209520@qq.com"
         }
     ],
     "license": "Apache-2.0",
@@ -22,7 +22,7 @@
         }
     },
     "require": {
-        "php": ">=8.0",
+        "php": ">=8.3",
         "ext-json": "*",
         "topthink/framework": "^8.0",
         "symfony/process": "^5.4 || ^6.4 || ^7.0 || ^8.0",
