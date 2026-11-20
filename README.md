@@ -140,6 +140,30 @@ php think queue:scheduler --batch=200 --interval=5 # 覆盖单次迁移数量与
 - **至少一次投递**：迁移后任务完全交由现有 Stream 消费机制（ACK、PEL、重试、幂等锁）处理；重复投递由 job_id 幂等锁兜底
 - **重启恢复**：调度器不持有任何任务状态，重启后自动从 ZSET 恢复调度；Redis 断线自动重试，恢复后继续调度
 
+### 队列监控（queue:monitor）
+
+实时只读监控队列状态，全程仅使用 Redis 只读命令（`XINFO` / `XPENDING` / `ZCARD` / `SCAN`），不向业务队列写入任何数据：
+
+```bash
+php think queue:monitor                    # 实时刷新（默认 2 秒）
+php think queue:monitor redis --queue=default --interval=1
+php think queue:monitor --once             # 单次快照（适合 cron / 告警脚本）
+php think queue:monitor --json             # JSON 快照（适合程序采集、接 Web 面板）
+```
+
+输出内容（stream 模式）：
+
+- **Stream**：待消费数、执行中（PEL）数、其中超过 `retry_after` 将被重投的数量
+- **吞吐**：累计生产（`entries-added`）、累计完成推导值（`≈` 表示估算）、实时速率（刷新差分）
+- **Delayed**：延迟任务总数 + 最近到期任务的时间轴
+- **Workers**：在线消费者及各自 pending（可判断 worker 掉线）
+- **锁占用 / 失败数**：幂等锁占用数量；失败数仅 `database` 失败驱动可统计
+
+注意事项：
+
+- 累计完成数由 `entries-added - Stream在途 - 重回延迟数` 推导，是估算值（重试任务每轮完成都会计入）；延迟任务超过 300 条时采样统计，显示 `≈≈`
+- list 模式自动降级为 Ready / Reserved / Delayed 三项基础数量
+
 ### 任务幂等锁（lock）
 
 默认开启。任务执行时长超过 `retry_after` 时，消息会被重新投递给其他 worker，导致同一任务被多个进程同时执行。开启幂等锁后，pop 到已被其他 worker 处理中的同一任务（按 payload 中的任务 id 判定）会直接跳过本次投递，避免重复执行。

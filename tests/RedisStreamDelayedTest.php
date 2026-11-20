@@ -5,6 +5,7 @@ namespace think\test\queue;
 use DateTimeImmutable;
 use Redis;
 use RedisException;
+use think\queue\command\Monitor;
 use think\queue\connector\RedisStream;
 
 /**
@@ -491,6 +492,97 @@ class RedisStreamDelayedTest extends TestCase
 
         $this->assertNotNull($jobId);
         $this->assertEqualsWithDelta($dueAt->getTimestamp() * 1000, $score, 1000);
+    }
+
+    /**
+     * 监控只读指标：stream/PEL/延迟/锁/消费者
+     */
+    public function testMonitorStats()
+    {
+        $connector = $this->makeConnector(['retry_after' => 1]);
+
+        $makePayload = function (string $id, int $attempts = 0): string {
+            return json_encode([
+                'job'      => 'test_job',
+                'maxTries' => null,
+                'timeout'  => null,
+                'data'     => ['name' => $id],
+                'id'       => $id,
+                'attempts' => $attempts,
+            ]);
+        };
+
+        // 2 条立即任务 + 1 条新延迟任务 + 1 条重回延迟任务（attempts 基数 > 0）
+        $connector->pushRaw($makePayload('mon-a'), $this->queue);
+        $connector->pushRaw($makePayload('mon-b'), $this->queue);
+        $connector->laterRaw(60, $makePayload('mon-c'), $this->queue);
+        $connector->laterRaw(60, $makePayload('mon-d', 2), $this->queue);
+
+        // pop 一条进入 PEL（持有幂等锁）
+        $job = $connector->pop($this->queue);
+        $this->assertNotNull($job);
+        $connector->deleteReserved($this->queue, $job);
+
+        $stream = $connector->streamStats($this->queue);
+        $this->assertSame(1, $stream['length']);
+        $this->assertGreaterThanOrEqual(2, $stream['entriesAdded']);
+
+        $pending = $connector->pendingStats($this->queue);
+        $this->assertSame(0, $pending['count']);
+        $this->assertSame(0, $pending['timeout']);
+
+        $delayed = $connector->delayedStats($this->queue);
+        $this->assertSame(2, $delayed['count']);
+        $this->assertSame(1, $delayed['reReleased']);
+        $this->assertCount(2, $delayed['next']);
+        $this->assertSame('test_job', $delayed['next'][0]['job']);
+        $this->assertGreaterThan($this->nowMs(), $delayed['next'][0]['dueMs']);
+
+        $consumers = $connector->consumersStats($this->queue);
+        $this->assertNotEmpty($consumers);
+
+        // 重新投递一条进入 PEL 后锁被占用，确认删除后释放
+        $job = $connector->pop($this->queue);
+        $this->assertNotNull($job);
+        $this->assertSame(1, $connector->lockCount($this->queue));
+        $connector->deleteReserved($this->queue, $job);
+        $this->assertSame(0, $connector->lockCount($this->queue));
+    }
+
+    /**
+     * 监控快照与渲染（与 queue:monitor 命令共用逻辑）
+     */
+    public function testMonitorSnapshot()
+    {
+        $monitor   = new Monitor();
+        $connector = $this->makeConnector(['retry_after' => 1]);
+
+        $connector->pushRaw(json_encode([
+            'job'      => 'test_job',
+            'maxTries' => null,
+            'timeout'  => null,
+            'data'     => ['name' => 'snap'],
+            'id'       => 'snap-a',
+            'attempts' => 0,
+        ]), $this->queue);
+
+        $snapshot = $monitor->snapshot($connector, $this->queue);
+
+        $this->assertSame('stream', $snapshot['mode']);
+        $this->assertSame($this->queue, $snapshot['queue']);
+        $this->assertSame(1, $snapshot['stream']['waiting']);
+        $this->assertSame(0, $snapshot['stream']['pending']);
+        $this->assertSame(1, $snapshot['throughput']['produced']);
+        $this->assertTrue($snapshot['throughput']['estimated']);
+        $this->assertSame(0, $snapshot['delayed']['count']);
+        $this->assertIsArray($snapshot['consumers']);
+
+        // 渲染输出包含关键信息
+        $prev = null;
+        $text = $monitor->renderSnapshot($connector, $this->queue, $prev);
+        $this->assertStringContainsString('待消费 1', $text);
+        $this->assertStringContainsString('已生产 1', $text);
+        $this->assertStringContainsString('已完成 ≈0', $text);
     }
 
     protected function nowMs(): int
